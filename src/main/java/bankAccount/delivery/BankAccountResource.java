@@ -37,7 +37,7 @@ public class BankAccountResource {
     public Uni<Response> updateEmail(@PathParam("aggregateID") String aggregateID) {
         return eventStoreDB.load(aggregateID, BankAccountAggregate.class)
                 .onItem().transform(bankAccountAggregate -> {
-                    bankAccountAggregate.changeEmail(bankAccountAggregate.getEmail() + "AWESOME");
+                    bankAccountAggregate.changeEmail(bankAccountAggregate.getEmail() + " AWESOME");
                     return bankAccountAggregate;
                 })
                 .chain(bankAccountAggregate -> eventStoreDB.save(bankAccountAggregate))
