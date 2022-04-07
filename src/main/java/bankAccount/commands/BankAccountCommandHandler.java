@@ -33,7 +33,8 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
                 .onItem().transform(aggregate -> {
                     aggregate.changeEmail(command.newEmail());
                     return aggregate;
-                }).chain(aggregate -> eventStoreDB.save(aggregate))
+                })
+                .chain(aggregate -> eventStoreDB.save(aggregate))
                 .onItem().invoke(() -> logger.infof("changed email: %s, id: %s", command.newEmail(), command.aggregateID()));
     }
 
@@ -43,7 +44,8 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
                 .onItem().transform(aggregate -> {
                     aggregate.changeAddress(command.newAddress());
                     return aggregate;
-                }).chain(aggregate -> eventStoreDB.save(aggregate))
+                })
+                .chain(aggregate -> eventStoreDB.save(aggregate))
                 .onItem().invoke(() -> logger.infof("changed address: %s, id: %s", command.newAddress(), command.aggregateID()));
     }
 
@@ -53,7 +55,8 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
                 .onItem().transform(aggregate -> {
                     aggregate.depositBalance(command.amount());
                     return aggregate;
-                }).chain(aggregate -> eventStoreDB.save(aggregate))
+                })
+                .chain(aggregate -> eventStoreDB.save(aggregate))
                 .onItem().invoke(() -> logger.infof("deposited amount: %s, id: %s", command.amount(), command.aggregateID()));
     }
 }

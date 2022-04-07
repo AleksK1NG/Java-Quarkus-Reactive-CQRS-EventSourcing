@@ -1,6 +1,7 @@
 package es;
 
 
+import bankAccount.exceptions.BankAccountNotFoundException;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Future;
 import io.vertx.pgclient.PgPool;
@@ -136,7 +137,11 @@ public class EventStore implements EventStoreDB {
                     ex.printStackTrace();
                 })
                 .compose(rowSetAsyncResult -> rowSetAsyncResult.size() == 0 ? Future.succeededFuture() : Future.succeededFuture(rowSetAsyncResult.iterator().next()))
-                .onSuccess(snapshot -> logger.infof("(getSnapshot) onSuccess snapshot version: %s", snapshot.getVersion()));
+                .onSuccess(snapshot -> {
+                    if (snapshot != null) {
+                        logger.infof("(getSnapshot) onSuccess snapshot version: %s", snapshot.getVersion());
+                    }
+                });
     }
 
     private <T extends AggregateRoot> T getAggregate(final String aggregateId, final Class<T> aggregateType) {
@@ -171,6 +176,9 @@ public class EventStore implements EventStoreDB {
                                     });
                                     return Future.succeededFuture(aggregate);
                                 } else {
+                                    if (aggregate.getVersion() == 0) {
+                                        return Future.failedFuture(new BankAccountNotFoundException(aggregateId));
+                                    }
                                     return Future.succeededFuture(aggregate);
                                 }
                             });
