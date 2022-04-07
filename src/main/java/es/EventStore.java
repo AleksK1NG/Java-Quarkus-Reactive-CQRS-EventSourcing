@@ -32,6 +32,7 @@ public class EventStore implements EventStoreDB {
     @Override
     public Future<RowSet<Row>> saveEvents(SqlConnection client, List<Event> events) {
         if (events.size() == 0) {
+            logger.info("(saveEvents) empty events list");
             return Future.succeededFuture();
         }
 
@@ -44,7 +45,6 @@ public class EventStore implements EventStoreDB {
                         Objects.isNull(event.getMetaData()) ? new byte[]{} : event.getMetaData(),
                         event.getVersion()))
                 .toList();
-
 
 
         return client.preparedQuery("INSERT INTO events (aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp) " +
@@ -102,8 +102,10 @@ public class EventStore implements EventStoreDB {
 
     private <T extends AggregateRoot> Future<RowSet<Row>> saveSnapshot(SqlConnection client, T aggregate) {
         logger.infof("saveSnapshot (SAVE SNAPSHOT) version >>>>>> %s", aggregate.getVersion());
+
         aggregate.toSnapshot();
         final var snapshot = EventSourcingUtils.snapshotFromAggregate(aggregate);
+
         return client.preparedQuery("INSERT INTO snapshots (aggregate_id, aggregate_type, data, metadata, version, timestamp) " +
                         "VALUES ($1, $2, $3, $4, $5, now()) " +
                         "ON CONFLICT (aggregate_id) " +
@@ -176,10 +178,7 @@ public class EventStore implements EventStoreDB {
                                     });
                                     return Future.succeededFuture(aggregate);
                                 } else {
-                                    if (aggregate.getVersion() == 0) {
-                                        return Future.failedFuture(new BankAccountNotFoundException(aggregateId));
-                                    }
-                                    return Future.succeededFuture(aggregate);
+                                    return (aggregate.getVersion() == 0) ? Future.failedFuture(new BankAccountNotFoundException(aggregateId)) : Future.succeededFuture(aggregate);
                                 }
                             });
                 }));
