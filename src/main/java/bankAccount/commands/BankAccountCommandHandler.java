@@ -29,25 +29,31 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
 
     @Override
     public Uni<Void> handle(ChangeEmailCommand command) {
-        final var aggregate = new BankAccountAggregate(command.aggregateID());
-        aggregate.changeEmail(command.newEmail());
-        return eventStoreDB.save(aggregate)
-                .onItem().invoke(() -> logger.infof("changed email: %s, id: %s", aggregate.getEmail(), aggregate.getId()));
+        return eventStoreDB.load(command.aggregateID(), BankAccountAggregate.class)
+                .onItem().transform(aggregate -> {
+                    aggregate.changeEmail(command.newEmail());
+                    return aggregate;
+                }).chain(aggregate -> eventStoreDB.save(aggregate))
+                .onItem().invoke(() -> logger.infof("changed email: %s, id: %s", command.newEmail(), command.aggregateID()));
     }
 
     @Override
     public Uni<Void> handle(ChangeAddressCommand command) {
-        final var aggregate = new BankAccountAggregate(command.aggregateID());
-        aggregate.changeAddress(command.newAddress());
-        return eventStoreDB.save(aggregate)
-                .onItem().invoke(() -> logger.infof("changed address: %s, id: %s", aggregate.getAddress(), aggregate.getId()));
+        return eventStoreDB.load(command.aggregateID(), BankAccountAggregate.class)
+                .onItem().transform(aggregate -> {
+                    aggregate.changeAddress(command.newAddress());
+                    return aggregate;
+                }).chain(aggregate -> eventStoreDB.save(aggregate))
+                .onItem().invoke(() -> logger.infof("changed address: %s, id: %s", command.newAddress(), command.aggregateID()));
     }
 
     @Override
     public Uni<Void> handle(DepositAmountCommand command) {
-        final var aggregate = new BankAccountAggregate(command.aggregateID());
-        aggregate.depositBalance(command.amount());
-        return eventStoreDB.save(aggregate)
-                .onItem().invoke(() -> logger.infof("deposited amount: %d, id: %s", aggregate.getBalance(), aggregate.getId()));
+        return eventStoreDB.load(command.aggregateID(), BankAccountAggregate.class)
+                .onItem().transform(aggregate -> {
+                    aggregate.depositBalance(command.amount());
+                    return aggregate;
+                }).chain(aggregate -> eventStoreDB.save(aggregate))
+                .onItem().invoke(() -> logger.infof("deposited amount: %s, id: %s", command.amount(), command.aggregateID()));
     }
 }
