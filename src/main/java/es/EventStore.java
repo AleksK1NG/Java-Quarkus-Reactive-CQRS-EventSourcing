@@ -19,7 +19,7 @@ import java.util.Objects;
 @ApplicationScoped
 public class EventStore implements EventStoreDB {
 
-    private final int SNAPSHOT_FREQUENCY = 2;
+    private final int SNAPSHOT_FREQUENCY = 3;
 
     @Inject
     Logger logger;
@@ -135,7 +135,8 @@ public class EventStore implements EventStoreDB {
                     logger.errorf("(getSnapshot) preparedQuery ex: %s", ex.getMessage());
                     ex.printStackTrace();
                 })
-                .compose(rowSetAsyncResult -> rowSetAsyncResult.size() == 0 ? Future.succeededFuture() : Future.succeededFuture(rowSetAsyncResult.iterator().next()));
+                .compose(rowSetAsyncResult -> rowSetAsyncResult.size() == 0 ? Future.succeededFuture() : Future.succeededFuture(rowSetAsyncResult.iterator().next()))
+                .onSuccess(snapshot -> logger.infof("(getSnapshot) onSuccess snapshot version: %s", snapshot.getVersion()));
     }
 
     private <T extends AggregateRoot> T getAggregate(final String aggregateId, final Class<T> aggregateType) {
@@ -164,7 +165,10 @@ public class EventStore implements EventStoreDB {
                     return this.loadEvents(aggregate.getId(), aggregate.getVersion())
                             .transform(events -> {
                                 if (events.succeeded() && events.result().size() > 0) {
-                                    events.result().forEach(aggregate::raiseEvent);
+                                    events.result().forEach(event -> {
+                                        aggregate.raiseEvent(event);
+                                        logger.infof("(load) loadEvents raiseEvent event version: %s", event.getVersion());
+                                    });
                                     return Future.succeededFuture(aggregate);
                                 } else {
                                     return Future.succeededFuture(aggregate);

@@ -32,7 +32,7 @@ public class BankAccountResource {
     public Uni<Response> createBanAccount(@Valid CreateBankAccountRequestDTO dto) {
         final var aggregateID = UUID.randomUUID().toString();
         final var aggregate = new BankAccountAggregate(aggregateID);
-        aggregate.createBankAccount(dto.newEmail(), dto.newAddress(), dto.userName());
+        aggregate.createBankAccount(dto.email(), dto.address(), dto.userName());
         logger.infof("aggregate: %s", aggregate);
         return eventStoreDB.save(aggregate).replaceWith(Response.status(201).entity(aggregate).build());
     }
