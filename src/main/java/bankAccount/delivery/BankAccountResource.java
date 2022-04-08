@@ -38,7 +38,7 @@ public class BankAccountResource {
         final var aggregateID = UUID.randomUUID().toString();
         final var command = new CreateBankAccountCommand(aggregateID, dto.email(), dto.userName(), dto.address());
         logger.infof("CreateBankAccountCommand: %s", command);
-        return commandService.handle(command).map(id -> Response.status(201).entity(id).build());
+        return commandService.handle(command).map(id -> Response.status(Response.Status.CREATED).entity(id).build());
     }
 
     @POST
