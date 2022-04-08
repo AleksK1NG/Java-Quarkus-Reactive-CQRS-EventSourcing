@@ -15,6 +15,7 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -94,11 +95,14 @@ public class EventStore implements EventStoreDB {
 
     @Override
     public <T extends AggregateRoot> Uni<Void> save(T aggregate) {
+        final List<Event> changes = new ArrayList<>(aggregate.getChanges());
+
+        logger.infof("(SAVE) aggregate changes: >>>> %s", changes);
         final var future = pgPool.withTransaction(client -> handleConcurrency(client, aggregate.getId())
                 .compose(v -> saveEvents(client, aggregate.getChanges()))
                 .compose(s -> aggregate.getVersion() % SNAPSHOT_FREQUENCY == 0 ? saveSnapshot(client, aggregate) : Future.succeededFuture())
-                .compose(a -> Future.fromCompletionStage(kafkaProducer.publish(aggregate.getChanges()).convert().toCompletionStage()))
-                .onFailure(ex -> ex.printStackTrace())
+                .onSuccess(a -> Future.fromCompletionStage(kafkaProducer.publish(changes).convert().toCompletionStage()))
+                .onFailure(Throwable::printStackTrace)
                 .onSuccess(success -> logger.infof("save success: %s", success)));
 
 //        aggregate.clearChanges();
@@ -121,10 +125,7 @@ public class EventStore implements EventStoreDB {
                         Objects.isNull(snapshot.getData()) ? new byte[]{} : snapshot.getData(),
                         Objects.isNull(snapshot.getMetaData()) ? new byte[]{} : snapshot.getMetaData(),
                         snapshot.getVersion()))
-                .onFailure(ex -> {
-                    logger.errorf("(saveSnapshot) preparedQuery ex: %s", ex.getMessage());
-                    ex.printStackTrace();
-                });
+                .onFailure(Throwable::printStackTrace);
     }
 
     private Future<Snapshot> getSnapshot(SqlConnection client, String aggregateID) {

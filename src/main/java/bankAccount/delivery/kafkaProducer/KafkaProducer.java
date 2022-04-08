@@ -25,7 +25,7 @@ public class KafkaProducer {
 //        final var aggregateTypeTopic = EventSourcingUtils.getAggregateTypeTopic(events.get(0).getAggregateType());
         final byte[] eventsBytes = SerializerUtils.serializeToJsonBytes(events.toArray(new Event[]{}));
         final ProducerRecord<String, byte[]> record = new ProducerRecord<>("eventstore", eventsBytes);
-        logger.infof("publish kafka record topic >>>>> %s", record.topic());
+        logger.infof("publish kafka record value >>>>> %s", new String(record.value()));
 
         return kafkaClientService.<String, byte[]>getProducer("eventstore-out")
                 .send(record)

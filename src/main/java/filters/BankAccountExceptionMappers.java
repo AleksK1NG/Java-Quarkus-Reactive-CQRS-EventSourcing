@@ -22,12 +22,14 @@ public class BankAccountExceptionMappers {
     public RestResponse<ExceptionResponseDTO> mapRuntimeExceptionException(RuntimeException ex) {
         final var response = new ExceptionResponseDTO(ex.getMessage(), 500, LocalDateTime.now());
         logger.errorf("(mapBankAccountNotFoundException) response: %s", response);
+        ex.printStackTrace();
         return RestResponse.status(Response.Status.INTERNAL_SERVER_ERROR, response);
     }
 
     @ServerExceptionMapper(priority = 3)
     public RestResponse<ExceptionResponseDTO> mapInternalServerErrorException(InternalServerErrorException ex) {
         final var response = new ExceptionResponseDTO(ex.getMessage(), 500, LocalDateTime.now());
+        ex.printStackTrace();
         logger.errorf("(mapInternalServerErrorException) response: %s", response);
         return RestResponse.status(Response.Status.INTERNAL_SERVER_ERROR, response);
     }
