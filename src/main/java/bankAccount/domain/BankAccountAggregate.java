@@ -7,6 +7,7 @@ import bankAccount.events.EmailChangedEvent;
 import es.AggregateRoot;
 import es.Event;
 import es.SerializerUtils;
+import es.exceptions.InvalidEventTypeException;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -33,7 +34,6 @@ public class BankAccountAggregate extends AggregateRoot {
 
     @Override
     public void when(Event event) {
-//        logger.infof("(BankAccountAggregate) when event: %s", event.toString());
         switch (event.getEventType()) {
             case BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_V1 ->
                     handle(SerializerUtils.deserializeFromJsonBytes(event.getData(), BankAccountCreatedEvent.class));
@@ -43,7 +43,7 @@ public class BankAccountAggregate extends AggregateRoot {
                     handle(SerializerUtils.deserializeFromJsonBytes(event.getData(), AddressUpdatedEvent.class));
             case BalanceDepositedEvent.BALANCE_DEPOSITED ->
                     handle(SerializerUtils.deserializeFromJsonBytes(event.getData(), BalanceDepositedEvent.class));
-            default -> throw new RuntimeException("invalid event type: " + event.getEventType());
+            default -> throw new InvalidEventTypeException(event.getEventType());
         }
     }
 
@@ -67,35 +67,31 @@ public class BankAccountAggregate extends AggregateRoot {
     }
 
     public void createBankAccount(String email, String address, String userName) {
-        final var data = BankAccountCreatedEvent.builder().email(email).address(address).userName(userName).build();
+        final var data = BankAccountCreatedEvent.builder().aggregateId(id).email(email).address(address).userName(userName).build();
         byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_V1, dataBytes, null);
-//        logger.infof("(createBankAccount) event: %s", event.toString());
         this.apply(event);
     }
 
     public void changeEmail(String email) {
-        final var data = EmailChangedEvent.builder().newEmail(email).build();
+        final var data = EmailChangedEvent.builder().aggregateId(id).newEmail(email).build();
         byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(EmailChangedEvent.EMAIL_CHANGED_V1, dataBytes, null);
-//        logger.infof("(changeEmail) event: %s", event.toString());
         apply(event);
 
     }
 
     public void changeAddress(String newAddress) {
-        final var data = AddressUpdatedEvent.builder().newAddress(newAddress).build();
+        final var data = AddressUpdatedEvent.builder().aggregateId(id).newAddress(newAddress).build();
         byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(AddressUpdatedEvent.ADDRESS_UPDATED_V1, dataBytes, null);
-//        logger.infof("(changeAddress) event: %s", event.toString());
         apply(event);
     }
 
     public void depositBalance(BigDecimal amount) {
-        final var data = BalanceDepositedEvent.builder().amount(amount).build();
+        final var data = BalanceDepositedEvent.builder().aggregateId(id).amount(amount).build();
         byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(BalanceDepositedEvent.BALANCE_DEPOSITED, dataBytes, null);
-//        logger.infof("(depositBalance) event: %s", event.toString());
         apply(event);
     }
 
