@@ -10,10 +10,13 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @ApplicationScoped
 public class KafkaProducer {
+
 
     @Inject
     Logger logger;
@@ -29,18 +32,10 @@ public class KafkaProducer {
 
         return kafkaClientService.<String, byte[]>getProducer("eventstore-out")
                 .send(record)
+                .ifNoItem().after(Duration.ofMillis(1000)).fail()
                 .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().retry().withBackOff(Duration.of(300, ChronoUnit.MILLIS)).atMost(3)
                 .onItem().invoke(msg -> logger.infof("publish key: %s, value: %s", record.key(), new String(record.value())))
                 .replaceWithVoid();
     }
-
-//    @Outgoing("eventstore-out")
-//    public Uni<ProducerRecord<String, byte[]>> publishEvent() {
-//        return Uni.createFrom().item(() -> {
-//            final var bytes = SerializerUtils.serializeToJsonBytes(event);
-//            final ProducerRecord<String, byte[]> record = new ProducerRecord<>("eventstore", bytes);
-//            logger.infof("publish kafka record >>>>> %s", record);
-//            return record;
-//        });
-//    }
 }
