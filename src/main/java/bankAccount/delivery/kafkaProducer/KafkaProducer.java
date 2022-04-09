@@ -8,13 +8,12 @@ import io.smallrye.reactive.messaging.kafka.KafkaClientService;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.jboss.logging.Logger;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-@ApplicationScoped
+//@ApplicationScoped
 public class KafkaProducer {
 
 
