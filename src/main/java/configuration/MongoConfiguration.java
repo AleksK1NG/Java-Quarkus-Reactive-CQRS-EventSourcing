@@ -1,5 +1,6 @@
 package configuration;
 
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import io.quarkus.mongodb.reactive.ReactiveMongoClient;
 import io.quarkus.runtime.StartupEvent;
@@ -29,20 +30,28 @@ public class MongoConfiguration {
     String bankAccountsCollection;
 
     void startup(@Observes StartupEvent event) {
+//        final var pojoCodecRegistry =CodecRegistries.fromRegistries(MongoClientSettings.getDefaultCodecRegistry(),
+//                CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build()));
+//
+//        MongoClientSettings settings = MongoClientSettings.builder()
+//                .codecRegistry(pojoCodecRegistry)
+//                .build();
+
         mongoClient.getDatabase(database)
                 .listCollectionNames().toUni()
                 .onFailure().invoke(Throwable::printStackTrace)
                 .chain(collections -> {
                     logger.infof("COLLECTIONS >>>>>>>> %s", collections);
-                    if (collections.contains(bankAccountsCollection)) {
+                    if (collections != null && collections.contains(bankAccountsCollection)) {
                         return Uni.createFrom().voidItem();
                     }
+                    final var indexOptions = new IndexOptions().unique(true);
                     return mongoClient.getDatabase(database)
                             .createCollection(bankAccountsCollection)
                             .onFailure().invoke(Throwable::printStackTrace)
                             .chain(v -> mongoClient.getDatabase(database)
                                     .getCollection(bankAccountsCollection)
-                                    .createIndex(Indexes.ascending(AGGREGATE_ID)));
+                                    .createIndex(Indexes.ascending(AGGREGATE_ID), indexOptions));
                 })
                 .subscribe().with(result -> logger.infof("listCollections: %s", result));
 
