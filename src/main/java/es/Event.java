@@ -46,8 +46,9 @@ public class Event {
                 ", aggregateId='" + aggregateId + '\'' +
                 ", eventType='" + eventType + '\'' +
                 ", aggregateType='" + aggregateType + '\'' +
-                ", version=" + version +
-                ", timeStamp=" + timeStamp +
+                ", version=" + version + '\'' +
+                ", timeStamp=" + timeStamp + '\'' +
+                ", data=" + new String(data) + '\'' +
                 '}';
     }
 }

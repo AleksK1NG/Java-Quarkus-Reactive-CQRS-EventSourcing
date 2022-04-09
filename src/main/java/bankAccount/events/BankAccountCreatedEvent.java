@@ -1,19 +1,22 @@
 package bankAccount.events;
 
 import bankAccount.domain.BankAccountAggregate;
-import lombok.AllArgsConstructor;
+import es.BaseEvent;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class BankAccountCreatedEvent {
+public class BankAccountCreatedEvent extends BaseEvent {
     public static final String BANK_ACCOUNT_CREATED_V1 = "BANK_ACCOUNT_CREATED_V1";
     public static final String AGGREGATE_TYPE = BankAccountAggregate.AGGREGATE_TYPE;
 
+    @Builder
+    public BankAccountCreatedEvent(String aggregateId, String email, String userName, String address) {
+        super(aggregateId);
+        this.email = email;
+        this.userName = userName;
+        this.address = address;
+    }
 
     private String email;
     private String userName;

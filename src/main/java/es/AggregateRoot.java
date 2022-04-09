@@ -1,5 +1,6 @@
 package es;
 
+import es.exceptions.InvalidEventException;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -68,7 +69,7 @@ public abstract class AggregateRoot {
 
     private void validateEvent(final Event event) {
         if (Objects.isNull(event) || !event.getAggregateId().equals(this.id))
-            throw new RuntimeException("invalid event");
+            throw new InvalidEventException(event.toString());
     }
 
     protected Event createEvent(String eventType, byte[] data, byte[] metadata) {
