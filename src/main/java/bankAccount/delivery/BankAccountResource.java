@@ -69,8 +69,9 @@ public class BankAccountResource {
     @Path("{aggregateID}")
     public Uni<Response> getBanAccount(@PathParam("aggregateID") String aggregateID) {
         final var query = new GetBankAccountByIDQuery(aggregateID);
-        logger.infof("GetBankAccountByIDQuery: %s", query);
-        return queryService.handle(query).onItem().transform(aggregate -> Response.status(200).entity(aggregate).build());
+        logger.infof("(HTTP getBanAccount) GetBankAccountByIDQuery: %s", query);
+        return queryService.handle(query)
+                .onItem().transform(aggregate -> Response.status(Response.Status.OK).entity(aggregate).build());
     }
 
 }
