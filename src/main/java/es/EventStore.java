@@ -101,7 +101,7 @@ public class EventStore implements EventStoreDB {
         final var future = pgPool.withTransaction(client -> handleConcurrency(client, aggregate.getId())
                 .compose(v -> saveEvents(client, aggregate.getChanges()))
                 .compose(s -> aggregate.getVersion() % SNAPSHOT_FREQUENCY == 0 ? saveSnapshot(client, aggregate) : Future.succeededFuture())
-                .onSuccess(a -> Future.fromCompletionStage(kafkaProducer.publish(changes).convert().toCompletionStage()))
+                .compose(a -> Future.fromCompletionStage(kafkaProducer.publish(changes).convert().toCompletionStage()))
                 .onFailure(Throwable::printStackTrace)
                 .onSuccess(success -> logger.infof("save success: %s", success)));
 
