@@ -2,6 +2,7 @@ package bankAccount.repository;
 
 
 import bankAccount.events.BankAccountCreatedEvent;
+import com.mongodb.client.result.InsertOneResult;
 import io.quarkus.mongodb.reactive.ReactiveMongoClient;
 import io.quarkus.mongodb.reactive.ReactiveMongoCollection;
 import io.smallrye.mutiny.Uni;
@@ -11,6 +12,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.math.BigDecimal;
 
 @ApplicationScoped
 public class BankAccountMongoRepository {
@@ -31,17 +33,18 @@ public class BankAccountMongoRepository {
         return mongoClient.getDatabase(database).getCollection(bankAccountsCollection);
     }
 
-    public Uni<Void> createBankAccount(BankAccountCreatedEvent event) {
+    public Uni<InsertOneResult> createBankAccount(BankAccountCreatedEvent event) {
         final var document = new Document();
-        document.put("aggregateID", event.getAggregateId());
+        document.put("aggregateId", event.getAggregateId());
         document.put("address", event.getAddress());
         document.put("email", event.getEmail());
         document.put("userName", event.getUserName());
+        document.put("balance", BigDecimal.valueOf(0));
 
         logger.infof("(createBankAccount) document: %s", document.toJson());
-        return getBankAccountCollection().insertOne(document)
-                .onFailure().invoke(Throwable::printStackTrace)
+        return mongoClient.getDatabase(database).getCollection(bankAccountsCollection).insertOne(document)
                 .onItem().invoke(result -> logger.infof("(createBankAccount) insert aggregateID: %s, result: %s", event.getAggregateId(), result.wasAcknowledged()))
-                .replaceWithVoid();
+                .log()
+                .onFailure().invoke(Throwable::printStackTrace);
     }
 }

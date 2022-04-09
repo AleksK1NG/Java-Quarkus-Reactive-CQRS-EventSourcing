@@ -4,6 +4,7 @@ import bankAccount.events.AddressUpdatedEvent;
 import bankAccount.events.BalanceDepositedEvent;
 import bankAccount.events.BankAccountCreatedEvent;
 import bankAccount.events.EmailChangedEvent;
+import bankAccount.repository.BankAccountMongoRepository;
 import es.Event;
 import es.SerializerUtils;
 import es.exceptions.InvalidEventTypeException;
@@ -15,6 +16,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.util.List;
 
 @ApplicationScoped
 public class KafkaConsumer {
@@ -22,18 +24,29 @@ public class KafkaConsumer {
     @Inject
     Logger logger;
 
+    @Inject
+    BankAccountMongoRepository mongoRepository;
+
     @Incoming(value = "eventstore-in")
     public Uni<Void> process(Message<byte[]> message) {
-        return Uni.createFrom().item(message)
-                .onItem().transformToMulti(eventsRecord -> {
-                    logger.infof("consumer process >>> events: %s", new String(message.getPayload()));
-                    final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
-                    return Multi.createFrom().items(events);
-                }).onItem().invoke(this::when)
-                .onFailure().invoke(ex -> logger.errorf("process Multi: %s", ex.getMessage()))
-                .toUni()
-                .onItem().transform(e -> message.ack()).replaceWithVoid()
-                .onFailure().invoke(ex -> logger.errorf("process ack exception: %s", ex.getMessage()));
+        logger.infof("(consumer) process >>> events: %s", new String(message.getPayload()));
+        final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
+        return Multi.createFrom().iterable(List.of(events))
+                .onItem().call(event -> when(event))
+                .toUni().replaceWithVoid()
+                .onItem().invoke(v ->message.ack())
+                .onFailure().invoke(ex -> ex.printStackTrace());
+
+
+//        return Uni.createFrom().item(message)
+//                .onItem().transformToMulti(eventsRecord -> {
+//
+//                    return Multi.createFrom().items(events);
+//                }).onItem().invoke(this::when)
+//                .onFailure().invoke(ex -> logger.errorf("process Multi: %s", ex.getMessage()))
+//                .toUni()
+//                .onItem().transform(e -> message.ack()).replaceWithVoid()
+//                .onFailure().invoke(ex -> logger.errorf("process ack exception: %s", ex.getMessage()));
 
 //                .onItem().invoke(eventsRecord -> {
 //                    logger.infof("consumer process >>> events: %s", new String(message.getPayload()));
@@ -48,7 +61,7 @@ public class KafkaConsumer {
 
     private Uni<Void> when(Event event) {
         final var aggregateId = event.getAggregateId();
-        logger.infof("(when) aggregateId: %s", aggregateId);
+        logger.infof("(when) >>>>> aggregateId: %s", aggregateId);
 
         switch (event.getEventType()) {
             case BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_V1 -> {
@@ -72,7 +85,10 @@ public class KafkaConsumer {
 
     private Uni<Void> handle(BankAccountCreatedEvent event) {
         logger.infof("(when) BankAccountCreatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
-        return Uni.createFrom().voidItem();
+        return mongoRepository.createBankAccount(event)
+                .onFailure().invoke(ex -> ex.printStackTrace())
+                .onItem().invoke(v -> logger.infof("consumer back account created: %s", event.getAggregateId()))
+                .replaceWithVoid();
     }
 
     private Uni<Void> handle(EmailChangedEvent event) {
