@@ -1,7 +1,6 @@
 package es;
 
 
-import bankAccount.delivery.kafkaProducer.KafkaProducer;
 import bankAccount.exceptions.BankAccountNotFoundException;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Future;
@@ -31,7 +30,7 @@ public class EventStore implements EventStoreDB {
     PgPool pgPool;
 
     @Inject
-    KafkaProducer kafkaProducer;
+    EventBus eventBus;
 
 
     @Override
@@ -101,7 +100,7 @@ public class EventStore implements EventStoreDB {
         final var future = pgPool.withTransaction(client -> handleConcurrency(client, aggregate.getId())
                 .compose(v -> saveEvents(client, aggregate.getChanges()))
                 .compose(s -> aggregate.getVersion() % SNAPSHOT_FREQUENCY == 0 ? saveSnapshot(client, aggregate) : Future.succeededFuture())
-                .compose(a -> Future.fromCompletionStage(kafkaProducer.publish(changes).convert().toCompletionStage()))
+                .compose(a -> Future.fromCompletionStage(eventBus.publish(changes).convert().toCompletionStage()))
                 .onFailure(Throwable::printStackTrace)
                 .onSuccess(success -> logger.infof("save success: %s", success)));
 
