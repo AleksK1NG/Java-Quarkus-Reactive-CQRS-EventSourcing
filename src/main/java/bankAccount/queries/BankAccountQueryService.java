@@ -1,8 +1,8 @@
 package bankAccount.queries;
 
-import bankAccount.domain.BankAccountAggregate;
+import bankAccount.dto.BankAccountResponseDTO;
 import io.smallrye.mutiny.Uni;
 
 public interface BankAccountQueryService {
-    Uni<BankAccountAggregate> handle(GetBankAccountByIDQuery query);
+    Uni<BankAccountResponseDTO> handle(GetBankAccountByIDQuery query);
 }
