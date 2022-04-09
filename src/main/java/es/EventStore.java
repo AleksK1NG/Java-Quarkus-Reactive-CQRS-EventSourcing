@@ -3,6 +3,8 @@ package es;
 
 import bankAccount.exceptions.BankAccountNotFoundException;
 import io.smallrye.mutiny.Uni;
+import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.Row;
@@ -175,24 +177,32 @@ public class EventStore implements EventStoreDB {
                     final var aggregate = getSnapshotFromClass(snapshot, aggregateId, aggregateType);
                     logger.infof("(load) aggregate: %s", aggregate);
                     return this.loadEvents(aggregate.getId(), aggregate.getVersion())
-                            .transform(events -> {
-                                if (events.succeeded() && events.result().size() > 0) {
-                                    events.result().forEach(event -> {
-                                        aggregate.raiseEvent(event);
-                                        logger.infof("(load) loadEvents raiseEvent event version: %s", event.getVersion());
-                                    });
-                                    return Future.succeededFuture(aggregate);
-                                } else {
-                                    return (aggregate.getVersion() == 0) ? Future.failedFuture(new BankAccountNotFoundException(aggregateId)) : Future.succeededFuture(aggregate);
-                                }
-                            });
+                            .transform(events -> raiseAggregateEvents(aggregate, events));
                 }));
 
         return Uni.createFrom().completionStage(future.toCompletionStage());
     }
 
+    private <T extends AggregateRoot> Future<@Nullable T> raiseAggregateEvents(T aggregate, AsyncResult<RowSet<Event>> events) {
+        if (events.succeeded() && events.result().size() > 0) {
+            events.result().forEach(event -> {
+                aggregate.raiseEvent(event);
+                logger.infof("(load) loadEvents raiseEvent event version: %s", event.getVersion());
+            });
+            return Future.succeededFuture(aggregate);
+        } else {
+            return (aggregate.getVersion() == 0) ? Future.failedFuture(new BankAccountNotFoundException(aggregate.getId())) : Future.succeededFuture(aggregate);
+        }
+    }
+
     @Override
     public Uni<Boolean> exists(String aggregateId) {
-        return null;
+        final var result = pgPool.preparedQuery("SELECT e.aggregate_id FROM events e WHERE e.aggregate_id = $1 LIMIT 1")
+                .execute(Tuple.of(aggregateId))
+                .map(m -> m.rowCount() > 0)
+                .onFailure(ex -> logger.errorf("(exists) aggregateId: %s, ex: %s", aggregateId, ex.getMessage()))
+                .onSuccess(isExists -> logger.infof("(exists) aggregateId: %s, exists: %s", aggregateId, isExists)).toCompletionStage();
+
+        return Uni.createFrom().completionStage(result);
     }
 }
