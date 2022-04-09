@@ -1,9 +1,11 @@
 package bankAccount.delivery.kafkaConsumer;
 
+import bankAccount.domain.BankAccountDocument;
 import bankAccount.events.AddressUpdatedEvent;
 import bankAccount.events.BalanceDepositedEvent;
 import bankAccount.events.BankAccountCreatedEvent;
 import bankAccount.events.EmailChangedEvent;
+import bankAccount.repository.BankAccountMongoPanacheRepository;
 import bankAccount.repository.BankAccountMongoRepository;
 import es.Event;
 import es.SerializerUtils;
@@ -16,6 +18,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.math.BigDecimal;
 import java.util.List;
 
 @ApplicationScoped
@@ -27,6 +30,9 @@ public class KafkaConsumer {
     @Inject
     BankAccountMongoRepository mongoRepository;
 
+    @Inject
+    BankAccountMongoPanacheRepository panacheRepository;
+
     @Incoming(value = "eventstore-in")
     public Uni<Void> process(Message<byte[]> message) {
         logger.infof("(consumer) process >>> events: %s", new String(message.getPayload()));
@@ -34,29 +40,8 @@ public class KafkaConsumer {
         return Multi.createFrom().iterable(List.of(events))
                 .onItem().call(event -> when(event))
                 .toUni().replaceWithVoid()
-                .onItem().invoke(v ->message.ack())
+                .onItem().invoke(v -> message.ack())
                 .onFailure().invoke(ex -> ex.printStackTrace());
-
-
-//        return Uni.createFrom().item(message)
-//                .onItem().transformToMulti(eventsRecord -> {
-//
-//                    return Multi.createFrom().items(events);
-//                }).onItem().invoke(this::when)
-//                .onFailure().invoke(ex -> logger.errorf("process Multi: %s", ex.getMessage()))
-//                .toUni()
-//                .onItem().transform(e -> message.ack()).replaceWithVoid()
-//                .onFailure().invoke(ex -> logger.errorf("process ack exception: %s", ex.getMessage()));
-
-//                .onItem().invoke(eventsRecord -> {
-//                    logger.infof("consumer process >>> events: %s", new String(message.getPayload()));
-//                    final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
-//                    List.of(events).forEach(event -> logger.infof("deserialized event >>>>>>> %s", event));
-//                })
-//                .onFailure().invoke(Throwable::printStackTrace)
-//                .onItem().transform(Message::ack)
-//                .onFailure().invoke(Throwable::printStackTrace)
-//                .replaceWithVoid();
     }
 
     private Uni<Void> when(Event event) {
@@ -85,24 +70,57 @@ public class KafkaConsumer {
 
     private Uni<Void> handle(BankAccountCreatedEvent event) {
         logger.infof("(when) BankAccountCreatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
-        return mongoRepository.createBankAccount(event)
-                .onFailure().invoke(ex -> ex.printStackTrace())
-                .onItem().invoke(v -> logger.infof("consumer back account created: %s", event.getAggregateId()))
+
+        final var document = BankAccountDocument.builder()
+                .aggregateId(event.getAggregateId())
+                .email(event.getEmail())
+                .address(event.getAddress())
+                .userName(event.getUserName())
+                .balance(BigDecimal.valueOf(0))
+                .build();
+        return panacheRepository.persist(document)
+                .onItem().invoke(result -> logger.infof("persist document result: %s", result))
+                .onFailure().invoke(Throwable::printStackTrace)
                 .replaceWithVoid();
     }
 
     private Uni<Void> handle(EmailChangedEvent event) {
-        logger.infof("(when) EmailChangedEvent: %s, aggregateID: %s", event, event.getAggregateId());
-        return Uni.createFrom().voidItem();
+        return panacheRepository.findByAggregateId(event.getAggregateId())
+                .onFailure().invoke(Throwable::printStackTrace)
+                .chain(bankAccountDocument -> {
+                    bankAccountDocument.setEmail(event.getNewEmail());
+                    return panacheRepository.update(bankAccountDocument);
+                })
+                .onFailure().invoke(Throwable::printStackTrace)
+                .onItem().invoke(updatedDocument -> logger.infof("(EmailChangedEvent) updatedDocument: %s", updatedDocument))
+                .replaceWithVoid();
     }
 
     private Uni<Void> handle(AddressUpdatedEvent event) {
         logger.infof("(when) AddressUpdatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
-        return Uni.createFrom().voidItem();
+        return panacheRepository.findByAggregateId(event.getAggregateId())
+                .onFailure().invoke(Throwable::printStackTrace)
+                .chain(bankAccountDocument -> {
+                    bankAccountDocument.setAddress(event.getNewAddress());
+                    return panacheRepository.update(bankAccountDocument);
+                })
+                .onFailure().invoke(Throwable::printStackTrace)
+                .onItem().invoke(updatedDocument -> logger.infof("(AddressUpdatedEvent) updatedDocument: %s", updatedDocument))
+                .replaceWithVoid();
     }
 
     private Uni<Void> handle(BalanceDepositedEvent event) {
         logger.infof("(when) BalanceDepositedEvent: %s, aggregateID: %s", event, event.getAggregateId());
-        return Uni.createFrom().voidItem();
+
+        return panacheRepository.findByAggregateId(event.getAggregateId())
+                .onFailure().invoke(Throwable::printStackTrace)
+                .chain(bankAccountDocument -> {
+                    final var balance = bankAccountDocument.getBalance();
+                    bankAccountDocument.setBalance(balance.add(event.getAmount()));
+                    return panacheRepository.update(bankAccountDocument);
+                })
+                .onFailure().invoke(Throwable::printStackTrace)
+                .onItem().invoke(updatedDocument -> logger.infof("(BalanceDepositedEvent) updatedDocument: %s", updatedDocument))
+                .replaceWithVoid();
     }
 }
