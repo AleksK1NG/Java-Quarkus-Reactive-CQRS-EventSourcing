@@ -1,5 +1,6 @@
 package bankAccount.delivery.kafkaConsumer;
 
+import bankAccount.domain.BankAccountAggregate;
 import bankAccount.domain.BankAccountDocument;
 import bankAccount.events.AddressUpdatedEvent;
 import bankAccount.events.BalanceDepositedEvent;
@@ -8,10 +9,13 @@ import bankAccount.events.EmailChangedEvent;
 import bankAccount.repository.BankAccountMongoPanacheRepository;
 import bankAccount.repository.BankAccountMongoRepository;
 import es.Event;
+import es.EventStoreDB;
+import es.Projection;
 import es.SerializerUtils;
 import es.exceptions.InvalidEventTypeException;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import mappers.BankAccountMapper;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.jboss.logging.Logger;
@@ -22,7 +26,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @ApplicationScoped
-public class KafkaConsumer {
+public class KafkaConsumer implements Projection {
 
     @Inject
     Logger logger;
@@ -33,18 +37,29 @@ public class KafkaConsumer {
     @Inject
     BankAccountMongoPanacheRepository panacheRepository;
 
+    @Inject
+    EventStoreDB eventStore;
+
     @Incoming(value = "eventstore-in")
     public Uni<Void> process(Message<byte[]> message) {
         logger.infof("(consumer) process >>> events: %s", new String(message.getPayload()));
         final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
+
         return Multi.createFrom().iterable(List.of(events))
-                .onItem().call(event -> when(event))
+                .onItem().call(event -> this.when(event)
+                        .onFailure().call(() -> panacheRepository.deleteByAggregateId(events[0].getAggregateId())
+                                .onFailure().invoke(ex -> logger.error("panacheRepository.deleteByAggregateId", ex))
+                                .onItem().call(e -> eventStore.load(events[0].getAggregateId(), BankAccountAggregate.class)
+                                        .onFailure().invoke(ex -> logger.error("eventStore.load", ex))
+                                        .onItem().call(bankAccountAggregate -> panacheRepository.persist(BankAccountMapper.bankAccountDocumentFromAggregate(bankAccountAggregate))))
+                                .onFailure().invoke(ex -> logger.error("panacheRepository.persist bankAccountAggregate", ex))
+                        ))
                 .toUni().replaceWithVoid()
                 .onItem().invoke(v -> message.ack())
-                .onFailure().invoke(ex -> ex.printStackTrace());
+                .onFailure().invoke(ex -> logger.error("consumer process events", ex));
     }
 
-    private Uni<Void> when(Event event) {
+    public Uni<Void> when(Event event) {
         final var aggregateId = event.getAggregateId();
         logger.infof("(when) >>>>> aggregateId: %s", aggregateId);
 
