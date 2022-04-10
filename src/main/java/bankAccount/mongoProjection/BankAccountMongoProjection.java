@@ -1,4 +1,4 @@
-package bankAccount.delivery.kafkaConsumer;
+package bankAccount.mongoProjection;
 
 import bankAccount.domain.BankAccountAggregate;
 import bankAccount.domain.BankAccountDocument;
@@ -26,7 +26,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @ApplicationScoped
-public class KafkaConsumer implements Projection {
+public class BankAccountMongoProjection implements Projection {
 
     @Inject
     Logger logger;
