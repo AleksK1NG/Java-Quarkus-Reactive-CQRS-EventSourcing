@@ -44,19 +44,21 @@ public class BankAccountMongoProjection implements Projection {
     public Uni<Void> process(Message<byte[]> message) {
         logger.infof("(consumer) process >>> events: %s", new String(message.getPayload()));
         final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
+        if (events.length == 0)
+            return Uni.createFrom().voidItem()
+                    .onItem().invoke(() -> logger.warnf("empty events list aggregateId: %s", events[0].getAggregateId()));
 
         return Multi.createFrom().iterable(List.of(events))
                 .onItem().call(event -> this.when(event)
                         .onFailure().call(() -> panacheRepository.deleteByAggregateId(events[0].getAggregateId())
-                                .onFailure().invoke(ex -> logger.error("panacheRepository.deleteByAggregateId", ex))
+                                .onFailure().invoke(ex -> logger.error("panacheRepository.deleteByAggregateId id: %s", events[0].getAggregateId(), ex))
                                 .onItem().call(e -> eventStore.load(events[0].getAggregateId(), BankAccountAggregate.class)
                                         .onFailure().invoke(ex -> logger.error("eventStore.load", ex))
                                         .onItem().call(bankAccountAggregate -> panacheRepository.persist(BankAccountMapper.bankAccountDocumentFromAggregate(bankAccountAggregate))))
-                                .onFailure().invoke(ex -> logger.error("panacheRepository.persist bankAccountAggregate", ex))
-                        ))
+                                .onFailure().invoke(ex -> logger.error("panacheRepository.persist bankAccountAggregate", ex))))
                 .toUni().replaceWithVoid()
                 .onItem().invoke(v -> message.ack())
-                .onFailure().invoke(ex -> logger.error("consumer process events", ex));
+                .onFailure().invoke(ex -> logger.error("consumer process events aggregateId: %s", events[0].getAggregateId(), ex));
     }
 
     public Uni<Void> when(Event event) {
