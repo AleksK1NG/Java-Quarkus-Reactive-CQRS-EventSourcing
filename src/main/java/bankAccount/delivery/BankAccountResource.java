@@ -8,6 +8,7 @@ import bankAccount.dto.CreateBankAccountRequestDTO;
 import bankAccount.dto.DepositAmountRequestDTO;
 import bankAccount.queries.BankAccountQueryService;
 import bankAccount.queries.GetBankAccountByIDQuery;
+import exceptions.ExecutionTimeoutException;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 
@@ -16,12 +17,14 @@ import javax.validation.Valid;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.time.Duration;
 import java.util.UUID;
 
 @Path(value = "/api/v1/bank")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class BankAccountResource {
+    private final static long EXECUTION_TIMEOUT_SECONDS = 1L;
 
     @Inject
     Logger logger;
@@ -38,7 +41,9 @@ public class BankAccountResource {
         final var aggregateID = UUID.randomUUID().toString();
         final var command = new CreateBankAccountCommand(aggregateID, dto.email(), dto.userName(), dto.address());
         logger.infof("CreateBankAccountCommand: %s", command);
-        return commandService.handle(command).map(id -> Response.status(Response.Status.CREATED).entity(id).build());
+        return commandService.handle(command)
+                .onItem().transform(id -> Response.status(Response.Status.CREATED).entity(id).build())
+                .ifNoItem().after(Duration.ofSeconds(EXECUTION_TIMEOUT_SECONDS)).failWith(new ExecutionTimeoutException());
     }
 
     @POST
@@ -46,7 +51,9 @@ public class BankAccountResource {
     public Uni<Response> updateEmail(@PathParam("aggregateID") String aggregateID, @Valid ChangeEmailRequestDTO dto) {
         final var command = new ChangeEmailCommand(aggregateID, dto.newEmail());
         logger.infof("ChangeEmailCommand: %s", command);
-        return commandService.handle(command).map(id -> Response.status(Response.Status.NO_CONTENT).build());
+        return commandService.handle(command)
+                .onItem().transform(id -> Response.status(Response.Status.NO_CONTENT).build())
+                .ifNoItem().after(Duration.ofSeconds(EXECUTION_TIMEOUT_SECONDS)).failWith(new ExecutionTimeoutException());
     }
 
     @POST
@@ -54,7 +61,9 @@ public class BankAccountResource {
     public Uni<Response> changeAddress(@PathParam("aggregateID") String aggregateID, @Valid ChangeAddressRequestDTO dto) {
         final var command = new ChangeAddressCommand(aggregateID, dto.newAddress());
         logger.infof("ChangeAddressCommand: %s", command);
-        return commandService.handle(command).map(id -> Response.status(Response.Status.NO_CONTENT).build());
+        return commandService.handle(command)
+                .onItem().transform(id -> Response.status(Response.Status.NO_CONTENT).build())
+                .ifNoItem().after(Duration.ofSeconds(EXECUTION_TIMEOUT_SECONDS)).failWith(new ExecutionTimeoutException());
     }
 
     @POST
@@ -62,7 +71,9 @@ public class BankAccountResource {
     public Uni<Response> depositAmount(@PathParam("aggregateID") String aggregateID, @Valid DepositAmountRequestDTO dto) {
         final var command = new DepositAmountCommand(aggregateID, dto.amount());
         logger.infof("DepositAmountCommand: %s", command);
-        return commandService.handle(command).map(id -> Response.status(Response.Status.NO_CONTENT).build());
+        return commandService.handle(command)
+                .onItem().transform(id -> Response.status(Response.Status.NO_CONTENT).build())
+                .ifNoItem().after(Duration.ofSeconds(EXECUTION_TIMEOUT_SECONDS)).failWith(new ExecutionTimeoutException());
     }
 
     @GET
@@ -71,7 +82,8 @@ public class BankAccountResource {
         final var query = new GetBankAccountByIDQuery(aggregateID);
         logger.infof("(HTTP getBanAccount) GetBankAccountByIDQuery: %s", query);
         return queryService.handle(query)
-                .onItem().transform(aggregate -> Response.status(Response.Status.OK).entity(aggregate).build());
+                .onItem().transform(aggregate -> Response.status(Response.Status.OK).entity(aggregate).build())
+                .ifNoItem().after(Duration.ofSeconds(EXECUTION_TIMEOUT_SECONDS)).failWith(new ExecutionTimeoutException());
     }
 
 }
