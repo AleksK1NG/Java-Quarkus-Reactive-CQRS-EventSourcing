@@ -12,4 +12,8 @@ public class BankAccountMongoPanacheRepository implements ReactivePanacheMongoRe
     public Uni<BankAccountDocument> findByAggregateId(String aggregateId) {
         return find("aggregateId", aggregateId).firstResult();
     }
+
+    public Uni<Long> deleteByAggregateId(String aggregateId) {
+        return delete("aggregateId", aggregateId);
+    }
 }
