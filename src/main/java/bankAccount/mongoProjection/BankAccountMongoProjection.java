@@ -7,7 +7,6 @@ import bankAccount.events.BalanceDepositedEvent;
 import bankAccount.events.BankAccountCreatedEvent;
 import bankAccount.events.EmailChangedEvent;
 import bankAccount.repository.BankAccountMongoPanacheRepository;
-import bankAccount.repository.BankAccountMongoRepository;
 import es.Event;
 import es.EventStoreDB;
 import es.Projection;
@@ -31,9 +30,6 @@ public class BankAccountMongoProjection implements Projection {
 
     @Inject
     Logger logger;
-
-    @Inject
-    BankAccountMongoRepository mongoRepository;
 
     @Inject
     BankAccountMongoPanacheRepository panacheRepository;
