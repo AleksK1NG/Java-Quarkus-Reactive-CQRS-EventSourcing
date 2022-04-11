@@ -9,6 +9,7 @@ import bankAccount.dto.DepositAmountRequestDTO;
 import bankAccount.queries.BankAccountQueryService;
 import bankAccount.queries.GetBankAccountByIDQuery;
 import exceptions.ExecutionTimeoutException;
+import io.opentracing.util.GlobalTracer;
 import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
@@ -19,6 +20,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 
 @Path(value = "/api/v1/bank")
@@ -38,6 +40,7 @@ public class BankAccountResource {
 
 
     @POST
+    @Traced
     public Uni<Response> createBanAccount(@Valid CreateBankAccountRequestDTO dto) {
         final var aggregateID = UUID.randomUUID().toString();
         final var command = new CreateBankAccountCommand(aggregateID, dto.email(), dto.userName(), dto.address());
@@ -49,6 +52,7 @@ public class BankAccountResource {
 
     @POST
     @Path("/email/{aggregateID}")
+    @Traced
     public Uni<Response> updateEmail(@PathParam("aggregateID") String aggregateID, @Valid ChangeEmailRequestDTO dto) {
         final var command = new ChangeEmailCommand(aggregateID, dto.newEmail());
         logger.infof("ChangeEmailCommand: %s", command);
@@ -59,6 +63,7 @@ public class BankAccountResource {
 
     @POST
     @Path("/address/{aggregateID}")
+    @Traced
     public Uni<Response> changeAddress(@PathParam("aggregateID") String aggregateID, @Valid ChangeAddressRequestDTO dto) {
         final var command = new ChangeAddressCommand(aggregateID, dto.newAddress());
         logger.infof("ChangeAddressCommand: %s", command);
@@ -69,6 +74,7 @@ public class BankAccountResource {
 
     @POST
     @Path("/deposit/{aggregateID}")
+    @Traced
     public Uni<Response> depositAmount(@PathParam("aggregateID") String aggregateID, @Valid DepositAmountRequestDTO dto) {
         final var command = new DepositAmountCommand(aggregateID, dto.amount());
         logger.infof("DepositAmountCommand: %s", command);
@@ -81,6 +87,7 @@ public class BankAccountResource {
     @Path("{aggregateID}")
     @Traced
     public Uni<Response> getBanAccount(@PathParam("aggregateID") String aggregateID) {
+        Optional.of(GlobalTracer.get().activeSpan()).map(span -> span.setTag("getBanAccount", aggregateID));
         final var query = new GetBankAccountByIDQuery(aggregateID);
         logger.infof("(HTTP getBanAccount) GetBankAccountByIDQuery: %s", query);
         return queryService.handle(query)
