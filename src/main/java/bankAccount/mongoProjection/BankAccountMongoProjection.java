@@ -16,6 +16,7 @@ import es.exceptions.InvalidEventTypeException;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import mappers.BankAccountMapper;
+import org.eclipse.microprofile.opentracing.Traced;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.jboss.logging.Logger;
@@ -41,6 +42,7 @@ public class BankAccountMongoProjection implements Projection {
     EventStoreDB eventStore;
 
     @Incoming(value = "eventstore-in")
+    @Traced
     public Uni<Void> process(Message<byte[]> message) {
         logger.infof("(consumer) process >>> events: %s", new String(message.getPayload()));
         final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
@@ -61,6 +63,7 @@ public class BankAccountMongoProjection implements Projection {
                 .onFailure().invoke(ex -> logger.error("consumer process events aggregateId: %s", events[0].getAggregateId(), ex));
     }
 
+    @Traced
     public Uni<Void> when(Event event) {
         final var aggregateId = event.getAggregateId();
         logger.infof("(when) >>>>> aggregateId: %s", aggregateId);
@@ -85,6 +88,7 @@ public class BankAccountMongoProjection implements Projection {
         }
     }
 
+    @Traced
     private Uni<Void> handle(BankAccountCreatedEvent event) {
         logger.infof("(when) BankAccountCreatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
 
@@ -101,6 +105,7 @@ public class BankAccountMongoProjection implements Projection {
                 .replaceWithVoid();
     }
 
+    @Traced
     private Uni<Void> handle(EmailChangedEvent event) {
         return panacheRepository.findByAggregateId(event.getAggregateId())
                 .onFailure().invoke(Throwable::printStackTrace)
@@ -113,6 +118,7 @@ public class BankAccountMongoProjection implements Projection {
                 .replaceWithVoid();
     }
 
+    @Traced
     private Uni<Void> handle(AddressUpdatedEvent event) {
         logger.infof("(when) AddressUpdatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
         return panacheRepository.findByAggregateId(event.getAggregateId())
@@ -126,6 +132,7 @@ public class BankAccountMongoProjection implements Projection {
                 .replaceWithVoid();
     }
 
+    @Traced
     private Uni<Void> handle(BalanceDepositedEvent event) {
         logger.infof("(when) BalanceDepositedEvent: %s, aggregateID: %s", event, event.getAggregateId());
 

@@ -11,6 +11,7 @@ import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.SqlConnection;
 import io.vertx.sqlclient.Tuple;
+import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -36,6 +37,7 @@ public class EventStore implements EventStoreDB {
 
 
     @Override
+    @Traced
     public Future<RowSet<Row>> saveEvents(SqlConnection client, List<Event> events) {
         if (events.size() == 0) {
             logger.info("(saveEvents) empty events list");
@@ -64,6 +66,7 @@ public class EventStore implements EventStoreDB {
     }
 
     @Override
+    @Traced
     public Future<RowSet<Event>> loadEvents(String aggregateId, long version) {
         return pgPool.preparedQuery("select event_id ,aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp" +
                         " from events e where e.aggregate_id = $1 and e.version > $2 ORDER BY e.version ASC")
@@ -85,6 +88,7 @@ public class EventStore implements EventStoreDB {
     }
 
 
+    @Traced
     private Future<RowSet<Row>> handleConcurrency(SqlConnection client, String aggregateID) {
         return client.preparedQuery("SELECT aggregate_id FROM events e WHERE e.aggregate_id = $1 LIMIT 1 FOR UPDATE")
                 .execute(Tuple.of(aggregateID))
@@ -95,6 +99,7 @@ public class EventStore implements EventStoreDB {
     }
 
     @Override
+    @Traced
     public <T extends AggregateRoot> Uni<Void> save(T aggregate) {
         final List<Event> changes = new ArrayList<>(aggregate.getChanges());
 
@@ -110,6 +115,8 @@ public class EventStore implements EventStoreDB {
         return Uni.createFrom().completionStage(future.toCompletionStage()).replaceWithVoid();
     }
 
+
+    @Traced
     private <T extends AggregateRoot> Future<RowSet<Row>> saveSnapshot(SqlConnection client, T aggregate) {
         logger.infof("saveSnapshot (SAVE SNAPSHOT) version >>>>>> %s", aggregate.getVersion());
 
@@ -129,6 +136,7 @@ public class EventStore implements EventStoreDB {
                 .onFailure(Throwable::printStackTrace);
     }
 
+    @Traced
     private Future<Snapshot> getSnapshot(SqlConnection client, String aggregateID) {
         return client.preparedQuery("select snapshot_id, aggregate_id, aggregate_type, data, metadata, version, timestamp from snapshots s where s.aggregate_id = $1")
                 .mapping(row -> Snapshot.builder()
@@ -153,6 +161,7 @@ public class EventStore implements EventStoreDB {
                 });
     }
 
+    @Traced
     private <T extends AggregateRoot> T getAggregate(final String aggregateId, final Class<T> aggregateType) {
         try {
             return aggregateType.getConstructor(String.class).newInstance(aggregateId);
@@ -162,6 +171,7 @@ public class EventStore implements EventStoreDB {
         }
     }
 
+    @Traced
     private <T extends AggregateRoot> T getSnapshotFromClass(Snapshot snapshot, String aggregateId, Class<T> aggregateType) {
         if (snapshot == null) {
             final var defaultSnapshot = EventSourcingUtils.snapshotFromAggregate(getAggregate(aggregateId, aggregateType));
@@ -171,6 +181,7 @@ public class EventStore implements EventStoreDB {
     }
 
     @Override
+    @Traced
     public <T extends AggregateRoot> Uni<T> load(String aggregateId, Class<T> aggregateType) {
         final var future = pgPool.withTransaction(client -> this.getSnapshot(client, aggregateId)
                 .compose(snapshot -> {
@@ -183,6 +194,7 @@ public class EventStore implements EventStoreDB {
         return Uni.createFrom().completionStage(future.toCompletionStage());
     }
 
+    @Traced
     private <T extends AggregateRoot> Future<@Nullable T> raiseAggregateEvents(T aggregate, AsyncResult<RowSet<Event>> events) {
         if (events.succeeded() && events.result().size() > 0) {
             events.result().forEach(event -> {
@@ -196,6 +208,7 @@ public class EventStore implements EventStoreDB {
     }
 
     @Override
+    @Traced
     public Uni<Boolean> exists(String aggregateId) {
         final var result = pgPool.preparedQuery("SELECT e.aggregate_id FROM events e WHERE e.aggregate_id = $1 LIMIT 1")
                 .execute(Tuple.of(aggregateId))

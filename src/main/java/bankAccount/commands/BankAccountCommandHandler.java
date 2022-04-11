@@ -4,6 +4,7 @@ package bankAccount.commands;
 import bankAccount.domain.BankAccountAggregate;
 import es.EventStoreDB;
 import io.smallrye.mutiny.Uni;
+import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -20,6 +21,7 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
 
 
     @Override
+    @Traced
     public Uni<String> handle(CreateBankAccountCommand command) {
         final var aggregate = new BankAccountAggregate(command.aggregateID());
         aggregate.createBankAccount(command.email(), command.address(), command.userName());
@@ -28,6 +30,7 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
     }
 
     @Override
+    @Traced
     public Uni<Void> handle(ChangeEmailCommand command) {
         return eventStoreDB.load(command.aggregateID(), BankAccountAggregate.class)
                 .onItem().transform(aggregate -> {
@@ -39,6 +42,7 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
     }
 
     @Override
+    @Traced
     public Uni<Void> handle(ChangeAddressCommand command) {
         return eventStoreDB.load(command.aggregateID(), BankAccountAggregate.class)
                 .onItem().transform(aggregate -> {
@@ -50,6 +54,7 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
     }
 
     @Override
+    @Traced
     public Uni<Void> handle(DepositAmountCommand command) {
         return eventStoreDB.load(command.aggregateID(), BankAccountAggregate.class)
                 .onItem().transform(aggregate -> {

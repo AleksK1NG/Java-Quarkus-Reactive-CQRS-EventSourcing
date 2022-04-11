@@ -7,6 +7,7 @@ import bankAccount.repository.BankAccountMongoPanacheRepository;
 import es.EventStoreDB;
 import io.smallrye.mutiny.Uni;
 import mappers.BankAccountMapper;
+import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -25,6 +26,7 @@ public class BankAccountQueryHandler implements BankAccountQueryService {
     BankAccountMongoPanacheRepository panacheRepository;
 
     @Override
+    @Traced
     public Uni<BankAccountResponseDTO> handle(GetBankAccountByIDQuery query) {
         return panacheRepository.findByAggregateId(query.aggregateID())
                 .onItem().transform(BankAccountMapper::bankAccountResponseDTOFromDocument)
