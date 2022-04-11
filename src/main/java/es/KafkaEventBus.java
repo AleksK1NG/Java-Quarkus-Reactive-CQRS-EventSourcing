@@ -4,6 +4,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.kafka.KafkaClientService;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -29,6 +30,7 @@ public class KafkaEventBus implements EventBus {
     String eventStoreTopic;
 
 
+    @Traced
     public Uni<Void> publish(List<Event> events) {
 //        final var aggregateTypeTopic = EventSourcingUtils.getAggregateTypeTopic(events.get(0).getAggregateType());
         final byte[] eventsBytes = SerializerUtils.serializeToJsonBytes(events.toArray(new Event[]{}));

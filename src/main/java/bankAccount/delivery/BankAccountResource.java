@@ -10,6 +10,7 @@ import bankAccount.queries.BankAccountQueryService;
 import bankAccount.queries.GetBankAccountByIDQuery;
 import exceptions.ExecutionTimeoutException;
 import io.smallrye.mutiny.Uni;
+import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
@@ -78,6 +79,7 @@ public class BankAccountResource {
 
     @GET
     @Path("{aggregateID}")
+    @Traced
     public Uni<Response> getBanAccount(@PathParam("aggregateID") String aggregateID) {
         final var query = new GetBankAccountByIDQuery(aggregateID);
         logger.infof("(HTTP getBanAccount) GetBankAccountByIDQuery: %s", query);
