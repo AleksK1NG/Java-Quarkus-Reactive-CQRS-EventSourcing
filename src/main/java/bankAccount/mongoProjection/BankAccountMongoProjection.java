@@ -41,9 +41,12 @@ public class BankAccountMongoProjection implements Projection {
     public Uni<Void> process(Message<byte[]> message) {
         logger.infof("(consumer) process >>> events: %s", new String(message.getPayload()));
         final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
+
         if (events.length == 0)
             return Uni.createFrom().voidItem()
-                    .onItem().invoke(() -> logger.warnf("empty events list aggregateId: %s", events[0].getAggregateId()));
+                    .onItem().invoke(() -> logger.warn("empty events list"))
+                    .onItem().invoke(message::ack)
+                    .onFailure().invoke(ex -> logger.error("process msg ack exception", ex));
 
         return Multi.createFrom().iterable(List.of(events))
                 .onItem().call(event -> this.when(event)
@@ -69,7 +72,6 @@ public class BankAccountMongoProjection implements Projection {
             }
             case EmailChangedEvent.EMAIL_CHANGED_V1 -> {
                 return handle(SerializerUtils.deserializeFromJsonBytes(event.getData(), EmailChangedEvent.class));
-
             }
             case AddressUpdatedEvent.ADDRESS_UPDATED_V1 -> {
                 return handle(SerializerUtils.deserializeFromJsonBytes(event.getData(), AddressUpdatedEvent.class));
@@ -94,21 +96,24 @@ public class BankAccountMongoProjection implements Projection {
                 .userName(event.getUserName())
                 .balance(BigDecimal.valueOf(0))
                 .build();
+
         return panacheRepository.persist(document)
                 .onItem().invoke(result -> logger.infof("persist document result: %s", result))
-                .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().invoke(ex -> logger.error("handle BankAccountCreatedEvent persist aggregateID: %s", event.getAggregateId(), ex))
                 .replaceWithVoid();
     }
 
     @Traced
     private Uni<Void> handle(EmailChangedEvent event) {
+        logger.infof("(when) EmailChangedEvent: %s, aggregateID: %s", event, event.getAggregateId());
+
         return panacheRepository.findByAggregateId(event.getAggregateId())
-                .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().invoke(ex -> logger.error("handle EmailChangedEvent findByAggregateId aggregateID: %s", event.getAggregateId(), ex))
                 .chain(bankAccountDocument -> {
                     bankAccountDocument.setEmail(event.getNewEmail());
                     return panacheRepository.update(bankAccountDocument);
                 })
-                .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().invoke(ex -> logger.error("handle EmailChangedEvent update aggregateID: %s", event.getAggregateId(), ex))
                 .onItem().invoke(updatedDocument -> logger.infof("(EmailChangedEvent) updatedDocument: %s", updatedDocument))
                 .replaceWithVoid();
     }
@@ -116,13 +121,14 @@ public class BankAccountMongoProjection implements Projection {
     @Traced
     private Uni<Void> handle(AddressUpdatedEvent event) {
         logger.infof("(when) AddressUpdatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
+
         return panacheRepository.findByAggregateId(event.getAggregateId())
-                .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().invoke(ex -> logger.error("handle EmailChangedEvent findByAggregateId aggregateID: %s", event.getAggregateId(), ex))
                 .chain(bankAccountDocument -> {
                     bankAccountDocument.setAddress(event.getNewAddress());
                     return panacheRepository.update(bankAccountDocument);
                 })
-                .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().invoke(ex -> logger.error("handle AddressUpdatedEvent update aggregateID: %s", event.getAggregateId(), ex))
                 .onItem().invoke(updatedDocument -> logger.infof("(AddressUpdatedEvent) updatedDocument: %s", updatedDocument))
                 .replaceWithVoid();
     }
@@ -132,13 +138,13 @@ public class BankAccountMongoProjection implements Projection {
         logger.infof("(when) BalanceDepositedEvent: %s, aggregateID: %s", event, event.getAggregateId());
 
         return panacheRepository.findByAggregateId(event.getAggregateId())
-                .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().invoke(ex -> logger.error("handle EmailChangedEvent findByAggregateId aggregateID: %s", event.getAggregateId(), ex))
                 .chain(bankAccountDocument -> {
                     final var balance = bankAccountDocument.getBalance();
                     bankAccountDocument.setBalance(balance.add(event.getAmount()));
                     return panacheRepository.update(bankAccountDocument);
                 })
-                .onFailure().invoke(Throwable::printStackTrace)
+                .onFailure().invoke(ex -> logger.error("handle BalanceDepositedEvent update aggregateID: %s", event.getAggregateId(), ex))
                 .onItem().invoke(updatedDocument -> logger.infof("(BalanceDepositedEvent) updatedDocument: %s", updatedDocument))
                 .replaceWithVoid();
     }
