@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@EqualsAndHashCode(callSuper=false)
+@EqualsAndHashCode(callSuper = false)
 public class BankAccountAggregate extends AggregateRoot {
 
 
@@ -74,14 +74,14 @@ public class BankAccountAggregate extends AggregateRoot {
                 .userName(userName)
                 .build();
 
-        byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
+        final byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_V1, dataBytes, null);
         this.apply(event);
     }
 
     public void changeEmail(String email) {
         final var data = EmailChangedEvent.builder().aggregateId(id).newEmail(email).build();
-        byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
+        final byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(EmailChangedEvent.EMAIL_CHANGED_V1, dataBytes, null);
         apply(event);
 
@@ -89,14 +89,14 @@ public class BankAccountAggregate extends AggregateRoot {
 
     public void changeAddress(String newAddress) {
         final var data = AddressUpdatedEvent.builder().aggregateId(id).newAddress(newAddress).build();
-        byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
+        final byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(AddressUpdatedEvent.ADDRESS_UPDATED_V1, dataBytes, null);
         apply(event);
     }
 
     public void depositBalance(BigDecimal amount) {
         final var data = BalanceDepositedEvent.builder().aggregateId(id).amount(amount).build();
-        byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
+        final byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(BalanceDepositedEvent.BALANCE_DEPOSITED, dataBytes, null);
         apply(event);
     }
