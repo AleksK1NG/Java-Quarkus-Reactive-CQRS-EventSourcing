@@ -14,6 +14,7 @@
 * [Prometheus](https://prometheus.io/) - Prometheus
 * [Grafana](https://grafana.com/) - Grafana
 * [Jaeger](https://www.jaegertracing.io/) - Jaeger tracing
+* [Flyway](https://www.jaegertracing.io/) - database migrations.
 
 
 ### Swagger UI:

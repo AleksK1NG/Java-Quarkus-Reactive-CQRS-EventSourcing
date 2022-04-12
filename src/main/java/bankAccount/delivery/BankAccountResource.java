@@ -7,9 +7,10 @@ import bankAccount.dto.ChangeEmailRequestDTO;
 import bankAccount.dto.CreateBankAccountRequestDTO;
 import bankAccount.dto.DepositAmountRequestDTO;
 import bankAccount.queries.BankAccountQueryService;
+import bankAccount.queries.FindAllByBalanceQuery;
 import bankAccount.queries.GetBankAccountByIDQuery;
 import exceptions.ExecutionTimeoutException;
-import io.opentracing.util.GlobalTracer;
+import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Uni;
 import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
@@ -89,7 +90,6 @@ public class BankAccountResource {
     @Path("{aggregateID}")
     @Traced
     public Uni<Response> getBanAccount(@PathParam("aggregateID") String aggregateID) {
-        Optional.of(GlobalTracer.get().activeSpan()).map(span -> span.setTag("getBanAccount", aggregateID));
         final var query = new GetBankAccountByIDQuery(aggregateID);
         logger.infof("(HTTP getBanAccount) GetBankAccountByIDQuery: %s", query);
 
@@ -98,4 +98,13 @@ public class BankAccountResource {
                 .ifNoItem().after(Duration.ofSeconds(EXECUTION_TIMEOUT_SECONDS)).failWith(new ExecutionTimeoutException());
     }
 
+    @GET
+    @Path("/balance")
+    @Traced
+    public Uni<Response> getAllByBalance(@QueryParam("page") Optional<Integer> page, @QueryParam("size") Optional<Integer> size) {
+        final var query = new FindAllByBalanceQuery(Page.of(page.orElse(0), size.orElse(5)));
+        return queryService.handle(query)
+                .onItem().transform(result -> Response.status(Response.Status.OK).entity(result).build())
+                .ifNoItem().after(Duration.ofSeconds(EXECUTION_TIMEOUT_SECONDS)).failWith(new ExecutionTimeoutException());
+    }
 }

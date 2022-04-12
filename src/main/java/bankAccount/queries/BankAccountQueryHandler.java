@@ -2,6 +2,7 @@ package bankAccount.queries;
 
 
 import bankAccount.domain.BankAccountAggregate;
+import bankAccount.domain.BankAccountDocument;
 import bankAccount.dto.BankAccountResponseDTO;
 import bankAccount.repository.BankAccountMongoPanacheRepository;
 import es.EventStoreDB;
@@ -12,6 +13,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.util.List;
 
 @ApplicationScoped
 public class BankAccountQueryHandler implements BankAccountQueryService {
@@ -40,5 +42,11 @@ public class BankAccountQueryHandler implements BankAccountQueryService {
                         .onFailure().invoke(Throwable::printStackTrace)
                         .onItem().transform(BankAccountMapper::bankAccountResponseDTOFromAggregate)
                         .onItem().invoke(bankAccountResponseDTO -> logger.infof("(bankAccountResponseDTO) >>> bankAccountResponseDTO: %s", bankAccountResponseDTO)));
+    }
+
+    @Override
+    public Uni<List<BankAccountDocument>> handle(FindAllByBalanceQuery query) {
+        return panacheRepository.findAllSortByBalanceWithPagination(query.page())
+                .onItem().invoke(result -> logger.infof("(findAllSortByBalanceWithPagination) query: %s", query));
     }
 }
