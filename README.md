@@ -1,7 +1,7 @@
 ### Java Quarkus CQRS and EventSourcing microservice example 👋
 
 #### 👨‍💻 Full list what has been used:
-* [quarkus](https://quarkus.io/) - Supersonic Subatomic Java.
+* [Quarkus](https://quarkus.io/) - Supersonic Subatomic Java.
 * [RESTEasy Reactive](https://quarkus.io/guides/resteasy-reactive) - RESTEasy Reactive in Quarkus
 * [Reactive PostgreSQL Client](https://vertx.io/docs/vertx-pg-client/java/) -The Reactive PostgreSQL Client.
 * [quarkus-mongodb-client](https://quarkus.io/guides/mongodb) - MongoDB client

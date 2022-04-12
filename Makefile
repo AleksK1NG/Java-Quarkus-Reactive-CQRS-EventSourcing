@@ -43,8 +43,10 @@ clean_docker_data:
 	rm -rf ./zookeeper
 	@echo Clearing prometheus data
 	rm -rf ./prometheus
-#	@echo Clearing postgres data
-#	rm -rf ./terminal_pgdata
+	@echo Clearing pg data
+	rm -rf ./pgdata
+	@echo Clearing mongo data
+	rm -rf ./mongodb_data_container
 
 # ==============================================================================
 # Docker support
