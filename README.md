@@ -1,3 +1,50 @@
+### Java Quarkus CQRS and EventSourcing microservice example 👋
+
+#### 👨‍💻 Full list what has been used:
+* [quarkus](https://quarkus.io/) - Supersonic Subatomic Java.
+* [RESTEasy Reactive](https://quarkus.io/guides/resteasy-reactive) - RESTEasy Reactive in Quarkus
+* [Reactive PostgreSQL Client](https://vertx.io/docs/vertx-pg-client/java/) -The Reactive PostgreSQL Client.
+* [quarkus-mongodb-client](https://quarkus.io/guides/mongodb) - MongoDB client
+* [hibernate-validator](https://quarkus.io/guides/validation) - Hibernate validator
+* [OpenAPI and Swagger UI](https://quarkus.io/guides/openapi-swaggerui) - OpenAPI and Swagger UI
+* [Micrometer metrics](https://quarkus.io/guides/micrometer) - Micrometer metrics
+* [OpenTracing](https://quarkus.io/guides/opentracing) - Jaeger OpenTracing
+* [Kafka Reactive](https://quarkus.io/guides/kafka-reactive-getting-started) - SmallRye Reactive Messaging to interact with Apache Kafka.
+* [Docker](https://www.docker.com/) - Docker
+* [Prometheus](https://prometheus.io/) - Prometheus
+* [Grafana](https://grafana.com/) - Grafana
+* [Jaeger](https://www.jaegertracing.io/) - Jaeger tracing
+
+
+### Swagger UI:
+
+http://localhost:8006/q/swagger-ui
+
+### Jaeger UI:
+
+http://localhost:16686
+
+### Prometheus UI:
+
+http://localhost:9090
+
+### Grafana UI:
+
+http://localhost:3005
+
+### Kafka UI:
+
+http://localhost:9000/
+
+
+
+For local development:
+```
+make local // runs docker-compose.local.yml
+./mvnw compile quarkus:dev
+```
+
+
 # code-with-quarkus-reactive-pg Project
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
