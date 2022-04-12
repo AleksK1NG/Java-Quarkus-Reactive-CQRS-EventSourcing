@@ -30,18 +30,11 @@ public class MongoConfiguration {
     String bankAccountsCollection;
 
     void startup(@Observes StartupEvent event) {
-//        final var pojoCodecRegistry =CodecRegistries.fromRegistries(MongoClientSettings.getDefaultCodecRegistry(),
-//                CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build()));
-//
-//        MongoClientSettings settings = MongoClientSettings.builder()
-//                .codecRegistry(pojoCodecRegistry)
-//                .build();
-
         mongoClient.getDatabase(database)
                 .listCollectionNames().toUni()
                 .onFailure().invoke(Throwable::printStackTrace)
                 .chain(collections -> {
-                    logger.infof("COLLECTIONS >>>>>>>> %s", collections);
+                    logger.infof("startup mongo collections: %s", collections);
                     if (collections != null && collections.contains(bankAccountsCollection)) {
                         return Uni.createFrom().voidItem();
                     }
