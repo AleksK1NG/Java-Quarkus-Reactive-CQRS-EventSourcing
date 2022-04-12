@@ -34,17 +34,17 @@ public class BankAccountQueryHandler implements BankAccountQueryService {
                 .onItem().invoke(bankAccountResponseDTO -> logger.infof("(FIND panacheRepository.findByAggregateId) bankAccountResponseDTO: %s", bankAccountResponseDTO))
                 .onFailure().invoke(ex -> logger.errorf("mongo aggregate not found: %s", ex.getMessage()))
                 .onFailure().recoverWithUni(e -> eventStoreDB.load(query.aggregateID(), BankAccountAggregate.class)
-                        .onFailure().invoke(Throwable::printStackTrace)
+                        .onFailure().invoke(ex -> logger.error("eventStoreDB.load", ex))
                         .onItem().invoke(bankAccountAggregate -> logger.infof("(eventStoreDB.load) >>> bankAccountAggregate: %s", bankAccountAggregate))
-                        .onFailure().invoke(Throwable::printStackTrace)
                         .onItem().call(bankAccountAggregate -> panacheRepository.persist(BankAccountMapper.bankAccountDocumentFromAggregate(bankAccountAggregate))
                                 .onItem().invoke(bankAccountDocument -> logger.infof("(panacheRepository.persist) >>> bankAccountDocument: %s", bankAccountDocument)))
-                        .onFailure().invoke(Throwable::printStackTrace)
+                        .onFailure().invoke(ex -> logger.error("persist", ex))
                         .onItem().transform(BankAccountMapper::bankAccountResponseDTOFromAggregate)
                         .onItem().invoke(bankAccountResponseDTO -> logger.infof("(bankAccountResponseDTO) >>> bankAccountResponseDTO: %s", bankAccountResponseDTO)));
     }
 
     @Override
+    @Traced
     public Uni<List<BankAccountDocument>> handle(FindAllByBalanceQuery query) {
         return panacheRepository.findAllSortByBalanceWithPagination(query.page())
                 .onItem().invoke(result -> logger.infof("(findAllSortByBalanceWithPagination) query: %s", query));
