@@ -1,29 +1,32 @@
 package filters;
 
+import org.eclipse.microprofile.opentracing.Traced;
 import org.jboss.logging.Logger;
 
-import javax.inject.Inject;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
-import java.io.IOException;
+import javax.ws.rs.ext.Provider;
+import java.util.Locale;
 
-//@Provider
+@Provider
+@Traced
 public class LoggingFilter implements ContainerRequestFilter, ContainerResponseFilter {
 
-    @Inject
-    Logger logger;
+    private final static Logger logger = Logger.getLogger(LoggingFilter.class);
 
     @Override
-    public void filter(ContainerRequestContext containerRequestContext) throws IOException {
+    public void filter(ContainerRequestContext containerRequestContext) {
     }
 
     @Override
-    public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext) throws IOException {
-        String method = containerRequestContext.getMethod();
-        String path = containerRequestContext.getUriInfo().getPath();
-        int status = containerResponseContext.getStatus();
-        logger.infof("(LoggingFilter) method: %s, path: %s, status: %d", method, path, status);
+    public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext) {
+        final var method = containerRequestContext.getMethod();
+        final var path = containerRequestContext.getUriInfo().getPath();
+        final int status = containerResponseContext.getStatus();
+        if ( !path.contains("/q/metrics")) {
+            logger.infof("(HTTP) method: %s, path: %s, status: %d", method.toUpperCase(Locale.ROOT), path, status);
+        }
     }
 }
