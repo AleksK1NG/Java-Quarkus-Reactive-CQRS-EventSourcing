@@ -25,9 +25,7 @@ import java.util.Objects;
 public class EventStore implements EventStoreDB {
 
     private final int SNAPSHOT_FREQUENCY = 3;
-
-    @Inject
-    Logger logger;
+    private final static Logger logger = Logger.getLogger(EventStore.class);
 
     @Inject
     PgPool pgPool;

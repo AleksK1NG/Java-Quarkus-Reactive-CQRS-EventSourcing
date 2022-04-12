@@ -17,8 +17,7 @@ public class MongoConfiguration {
 
     private final static String AGGREGATE_ID = "aggregateId";
 
-    @Inject
-    Logger logger;
+    private final static Logger logger = Logger.getLogger(MongoConfiguration.class);
 
     @Inject
     ReactiveMongoClient mongoClient;

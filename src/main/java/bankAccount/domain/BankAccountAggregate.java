@@ -67,7 +67,13 @@ public class BankAccountAggregate extends AggregateRoot {
     }
 
     public void createBankAccount(String email, String address, String userName) {
-        final var data = BankAccountCreatedEvent.builder().aggregateId(id).email(email).address(address).userName(userName).build();
+        final var data = BankAccountCreatedEvent.builder()
+                .aggregateId(id)
+                .email(email)
+                .address(address)
+                .userName(userName)
+                .build();
+
         byte[] dataBytes = SerializerUtils.serializeToJsonBytes(data);
         final var event = this.createEvent(BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_V1, dataBytes, null);
         this.apply(event);

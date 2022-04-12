@@ -14,7 +14,7 @@ public final class BankAccountMapper {
         return new BankAccountResponseDTO(
                 bankAccountAggregate.getId(),
                 bankAccountAggregate.getEmail(),
-                bankAccountAggregate.getEmail(),
+                bankAccountAggregate.getAddress(),
                 bankAccountAggregate.getUserName(),
                 bankAccountAggregate.getBalance()
         );
@@ -24,7 +24,7 @@ public final class BankAccountMapper {
         return new BankAccountResponseDTO(
                 bankAccountDocument.getAggregateId(),
                 bankAccountDocument.getEmail(),
-                bankAccountDocument.getEmail(),
+                bankAccountDocument.getAddress(),
                 bankAccountDocument.getUserName(),
                 bankAccountDocument.getBalance()
         );

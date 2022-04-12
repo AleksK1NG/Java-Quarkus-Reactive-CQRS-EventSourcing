@@ -13,8 +13,7 @@ import javax.inject.Inject;
 @ApplicationScoped
 public class BankAccountCommandHandler implements BankAccountCommandService {
 
-    @Inject
-    Logger logger;
+    private final static Logger logger = Logger.getLogger(BankAccountCommandHandler.class);
 
     @Inject
     EventStoreDB eventStoreDB;

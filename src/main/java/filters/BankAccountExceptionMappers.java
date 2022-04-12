@@ -9,15 +9,13 @@ import org.jboss.resteasy.reactive.RestResponse;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 import javax.ws.rs.core.Response;
 import java.time.LocalDateTime;
 
 @ApplicationScoped
 public class BankAccountExceptionMappers {
 
-    @Inject
-    Logger logger;
+    private final static Logger logger = Logger.getLogger(BankAccountExceptionMappers.class);
 
     @ServerExceptionMapper(priority = 5)
     public RestResponse<ExceptionResponseDTO> mapRuntimeExceptionException(RuntimeException ex) {

@@ -28,8 +28,7 @@ import java.util.List;
 @ApplicationScoped
 public class BankAccountMongoProjection implements Projection {
 
-    @Inject
-    Logger logger;
+    private final static Logger logger = Logger.getLogger(BankAccountMongoProjection.class);
 
     @Inject
     BankAccountMongoPanacheRepository panacheRepository;

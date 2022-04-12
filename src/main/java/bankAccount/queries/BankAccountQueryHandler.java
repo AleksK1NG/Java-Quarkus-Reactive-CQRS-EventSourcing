@@ -16,8 +16,7 @@ import javax.inject.Inject;
 @ApplicationScoped
 public class BankAccountQueryHandler implements BankAccountQueryService {
 
-    @Inject
-    Logger logger;
+    private final static Logger logger = Logger.getLogger(BankAccountQueryHandler.class);
 
     @Inject
     EventStoreDB eventStoreDB;
@@ -31,7 +30,7 @@ public class BankAccountQueryHandler implements BankAccountQueryService {
         return panacheRepository.findByAggregateId(query.aggregateID())
                 .onItem().transform(BankAccountMapper::bankAccountResponseDTOFromDocument)
                 .onItem().invoke(bankAccountResponseDTO -> logger.infof("(FIND panacheRepository.findByAggregateId) bankAccountResponseDTO: %s", bankAccountResponseDTO))
-                .onFailure().invoke(ex -> logger.errorf("MONGO AGGREGATE NOT FOUND: %s", ex.getMessage()))
+                .onFailure().invoke(ex -> logger.errorf("mongo aggregate not found: %s", ex.getMessage()))
                 .onFailure().recoverWithUni(e -> eventStoreDB.load(query.aggregateID(), BankAccountAggregate.class)
                         .onFailure().invoke(Throwable::printStackTrace)
                         .onItem().invoke(bankAccountAggregate -> logger.infof("(eventStoreDB.load) >>> bankAccountAggregate: %s", bankAccountAggregate))

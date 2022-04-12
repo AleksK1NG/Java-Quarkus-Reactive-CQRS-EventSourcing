@@ -16,12 +16,11 @@ import java.util.List;
 @ApplicationScoped
 public class KafkaEventBus implements EventBus {
 
+    private final static Logger logger = Logger.getLogger(KafkaEventBus.class);
+
     private static final int PUBLISH_TIMEOUT = 1000;
     private static final int BACKOFF_TIMEOUT = 300;
     private static final int RETRY_COUNT = 3;
-
-    @Inject
-    Logger logger;
 
     @Inject
     KafkaClientService kafkaClientService;
@@ -32,7 +31,6 @@ public class KafkaEventBus implements EventBus {
 
     @Traced
     public Uni<Void> publish(List<Event> events) {
-//        final var aggregateTypeTopic = EventSourcingUtils.getAggregateTypeTopic(events.get(0).getAggregateType());
         final byte[] eventsBytes = SerializerUtils.serializeToJsonBytes(events.toArray(new Event[]{}));
         final ProducerRecord<String, byte[]> record = new ProducerRecord<>(eventStoreTopic, eventsBytes);
         logger.infof("publish kafka record value >>>>> %s", new String(record.value()));
