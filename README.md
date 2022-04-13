@@ -36,7 +36,7 @@ http://localhost:3005
 
 For local development:
 ```
-make local // runs docker-compose.local.yml
+make local // runs docker-compose.yml
 ./mvnw compile quarkus:dev // run microservice
 ```
 
