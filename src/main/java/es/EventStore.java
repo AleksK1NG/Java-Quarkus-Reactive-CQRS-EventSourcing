@@ -20,12 +20,24 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @ApplicationScoped
 public class EventStore implements EventStoreDB {
 
     private final int SNAPSHOT_FREQUENCY = 3;
     private final static Logger logger = Logger.getLogger(EventStore.class);
+    private final static String SAVE_EVENTS_QUERY = "INSERT INTO events (aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp) " +
+            "values ($1, $2, $3, $4, $5, $6, now())";
+    private final static String LOAD_EVENTS_QUERY = "select event_id ,aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp" +
+            " from events e where e.aggregate_id = $1 and e.version > $2 ORDER BY e.version ASC";
+    private final static String HANDLE_CONCURRENCY_QUERY = "SELECT aggregate_id FROM events e WHERE e.aggregate_id = $1 LIMIT 1 FOR UPDATE";
+    private final static String SAVE_SNAPSHOT_QUERY = "INSERT INTO snapshots (aggregate_id, aggregate_type, data, metadata, version, timestamp) " +
+            "VALUES ($1, $2, $3, $4, $5, now()) " +
+            "ON CONFLICT (aggregate_id) " +
+            "DO UPDATE SET data = $3, version = $5, timestamp = now()";
+    private final static String EXISTS_QUERY = "SELECT e.aggregate_id FROM events e WHERE e.aggregate_id = $1 LIMIT 1";
+    private final static String GET_SNAPSHOT_QUERY = "select snapshot_id, aggregate_id, aggregate_type, data, metadata, version, timestamp from snapshots s where s.aggregate_id = $1";
 
     @Inject
     PgPool pgPool;
@@ -33,11 +45,10 @@ public class EventStore implements EventStoreDB {
     @Inject
     EventBus eventBus;
 
-
     @Override
     @Traced
     public Future<RowSet<Row>> saveEvents(SqlConnection client, List<Event> events) {
-        if (events.size() == 0) {
+        if (events.isEmpty()) {
             logger.info("(saveEvents) empty events list");
             return Future.succeededFuture();
         }
@@ -49,26 +60,23 @@ public class EventStore implements EventStoreDB {
                         event.getEventType(),
                         Objects.isNull(event.getData()) ? new byte[]{} : event.getData(),
                         Objects.isNull(event.getMetaData()) ? new byte[]{} : event.getMetaData(),
-                        event.getVersion()))
-                .toList();
+                        event.getVersion())).toList();
 
+        if (tupleList.size() == 1) {
+            return client.preparedQuery(SAVE_EVENTS_QUERY).execute(tupleList.get(0))
+                    .onFailure(ex -> logger.error("(execute) ex:", ex))
+                    .onSuccess(result -> logger.infof("(saveEvents) execute result: %s", result.rowCount()));
+        }
 
-        return client.preparedQuery("INSERT INTO events (aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp) " +
-                        "values ($1, $2, $3, $4, $5, $6, now())")
-                .executeBatch(tupleList)
-                .onFailure(ex -> {
-                    logger.errorf("(executeBatch) ex: %s", ex.getMessage());
-                    ex.printStackTrace();
-                })
-                .onSuccess(result -> logger.infof("(saveEvents) result: %s", result.rowCount()));
+        return client.preparedQuery(SAVE_EVENTS_QUERY).executeBatch(tupleList)
+                .onFailure(ex -> logger.error("(executeBatch) ex:", ex))
+                .onSuccess(result -> logger.infof("(saveEvents) executeBatch result: %s", result.rowCount()));
     }
 
     @Override
     @Traced
     public Future<RowSet<Event>> loadEvents(String aggregateId, long version) {
-        return pgPool.preparedQuery("select event_id ,aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp" +
-                        " from events e where e.aggregate_id = $1 and e.version > $2 ORDER BY e.version ASC")
-                .mapping(row -> Event.builder()
+        return pgPool.preparedQuery(LOAD_EVENTS_QUERY).mapping(row -> Event.builder()
                         .id(row.getUUID("event_id"))
                         .aggregateId(row.getString("aggregate_id"))
                         .aggregateType(row.getString("aggregate_type"))
@@ -79,21 +87,14 @@ public class EventStore implements EventStoreDB {
                         .timeStamp(row.getOffsetDateTime("timestamp").toZonedDateTime())
                         .build())
                 .execute(Tuple.of(aggregateId, version))
-                .onFailure(ex -> {
-                    logger.errorf("(loadEvents) preparedQuery ex: %s", ex.getMessage());
-                    ex.printStackTrace();
-                });
+                .onFailure(ex -> logger.error("(loadEvents) preparedQuery ex:", ex));
     }
 
 
     @Traced
     private Future<RowSet<Row>> handleConcurrency(SqlConnection client, String aggregateID) {
-        return client.preparedQuery("SELECT aggregate_id FROM events e WHERE e.aggregate_id = $1 LIMIT 1 FOR UPDATE")
-                .execute(Tuple.of(aggregateID))
-                .onFailure(ex -> {
-                    logger.errorf("handleConcurrency ex: %s", ex.getMessage());
-                    ex.printStackTrace();
-                });
+        return client.preparedQuery(HANDLE_CONCURRENCY_QUERY).execute(Tuple.of(aggregateID))
+                .onFailure(ex -> logger.error("handleConcurrency ex", ex));
     }
 
     @Override
@@ -121,23 +122,18 @@ public class EventStore implements EventStoreDB {
         aggregate.toSnapshot();
         final var snapshot = EventSourcingUtils.snapshotFromAggregate(aggregate);
 
-        return client.preparedQuery("INSERT INTO snapshots (aggregate_id, aggregate_type, data, metadata, version, timestamp) " +
-                        "VALUES ($1, $2, $3, $4, $5, now()) " +
-                        "ON CONFLICT (aggregate_id) " +
-                        "DO UPDATE SET data = $3, version = $5, timestamp = now()")
-                .execute(Tuple.of(
+        return client.preparedQuery(SAVE_SNAPSHOT_QUERY).execute(Tuple.of(
                         snapshot.getAggregateId(),
                         snapshot.getAggregateType(),
                         Objects.isNull(snapshot.getData()) ? new byte[]{} : snapshot.getData(),
                         Objects.isNull(snapshot.getMetaData()) ? new byte[]{} : snapshot.getMetaData(),
                         snapshot.getVersion()))
-                .onFailure(Throwable::printStackTrace);
+                .onFailure(ex -> logger.error("(saveSnapshot) preparedQuery execute:", ex));
     }
 
     @Traced
     private Future<Snapshot> getSnapshot(SqlConnection client, String aggregateID) {
-        return client.preparedQuery("select snapshot_id, aggregate_id, aggregate_type, data, metadata, version, timestamp from snapshots s where s.aggregate_id = $1")
-                .mapping(row -> Snapshot.builder()
+        return client.preparedQuery(GET_SNAPSHOT_QUERY).mapping(row -> Snapshot.builder()
                         .id(row.getUUID("snapshot_id"))
                         .aggregateId(row.getString("aggregate_id"))
                         .aggregateType(row.getString("aggregate_type"))
@@ -147,16 +143,9 @@ public class EventStore implements EventStoreDB {
                         .timeStamp(row.getLocalDateTime("timestamp"))
                         .build())
                 .execute(Tuple.of(aggregateID))
-                .onFailure(ex -> {
-                    logger.errorf("(getSnapshot) preparedQuery ex: %s", ex.getMessage());
-                    ex.printStackTrace();
-                })
-                .compose(rowSetAsyncResult -> rowSetAsyncResult.size() == 0 ? Future.succeededFuture() : Future.succeededFuture(rowSetAsyncResult.iterator().next()))
-                .onSuccess(snapshot -> {
-                    if (snapshot != null) {
-                        logger.infof("(getSnapshot) onSuccess snapshot version: %s", snapshot.getVersion());
-                    }
-                });
+                .onFailure(ex -> logger.error("(getSnapshot) preparedQuery ex:", ex))
+                .compose(result -> result.size() == 0 ? Future.succeededFuture() : Future.succeededFuture(result.iterator().next()))
+                .onSuccess(snapshot -> logger.infof("(getSnapshot) onSuccess snapshot version: %s", Optional.ofNullable(snapshot).map(Snapshot::getVersion)));
     }
 
     @Traced
@@ -208,8 +197,7 @@ public class EventStore implements EventStoreDB {
     @Override
     @Traced
     public Uni<Boolean> exists(String aggregateId) {
-        final var result = pgPool.preparedQuery("SELECT e.aggregate_id FROM events e WHERE e.aggregate_id = $1 LIMIT 1")
-                .execute(Tuple.of(aggregateId))
+        final var result = pgPool.preparedQuery(EXISTS_QUERY).execute(Tuple.of(aggregateId))
                 .map(m -> m.rowCount() > 0)
                 .onFailure(ex -> logger.errorf("(exists) aggregateId: %s, ex: %s", aggregateId, ex.getMessage()))
                 .onSuccess(isExists -> logger.infof("(exists) aggregateId: %s, exists: %s", aggregateId, isExists)).toCompletionStage();
