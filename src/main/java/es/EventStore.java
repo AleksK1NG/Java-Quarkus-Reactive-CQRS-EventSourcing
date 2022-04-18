@@ -25,8 +25,9 @@ import java.util.Optional;
 @ApplicationScoped
 public class EventStore implements EventStoreDB {
 
-    private final int SNAPSHOT_FREQUENCY = 3;
     private final static Logger logger = Logger.getLogger(EventStore.class);
+
+    private final int SNAPSHOT_FREQUENCY = 3;
     private final static String SAVE_EVENTS_QUERY = "INSERT INTO events (aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp) " +
             "values ($1, $2, $3, $4, $5, $6, now())";
     private final static String LOAD_EVENTS_QUERY = "select event_id ,aggregate_id, aggregate_type, event_type, data, metadata, version, timestamp" +
@@ -199,7 +200,7 @@ public class EventStore implements EventStoreDB {
     public Uni<Boolean> exists(String aggregateId) {
         final var result = pgPool.preparedQuery(EXISTS_QUERY).execute(Tuple.of(aggregateId))
                 .map(m -> m.rowCount() > 0)
-                .onFailure(ex -> logger.errorf("(exists) aggregateId: %s, ex: %s", aggregateId, ex.getMessage()))
+                .onFailure(ex -> logger.error("(exists) aggregateId: %s, ex:", aggregateId, ex))
                 .onSuccess(isExists -> logger.infof("(exists) aggregateId: %s, exists: %s", aggregateId, isExists)).toCompletionStage();
 
         return Uni.createFrom().completionStage(result);
