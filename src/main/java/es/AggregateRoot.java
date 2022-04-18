@@ -52,7 +52,6 @@ public abstract class AggregateRoot {
         when(event);
 
         this.version++;
-//        event.setVersion(this.version);
     }
 
     public void clearChanges() {
