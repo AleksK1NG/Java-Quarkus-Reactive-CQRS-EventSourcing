@@ -28,7 +28,7 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class BankAccountResource {
-    private final static long EXECUTION_TIMEOUT_SECONDS = 1L;
+    private final static long EXECUTION_TIMEOUT_SECONDS = 5L;
     private final static Logger logger = Logger.getLogger(BankAccountResource.class);
 
     @Inject

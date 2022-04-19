@@ -1,18 +1,17 @@
 package es;
 
 import io.smallrye.mutiny.Uni;
-import io.vertx.core.Future;
-import io.vertx.sqlclient.Row;
-import io.vertx.sqlclient.RowSet;
-import io.vertx.sqlclient.SqlConnection;
+import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 
 import java.util.List;
 
 public interface EventStoreDB {
 
-    Future<RowSet<Row>> saveEvents(SqlConnection client, final List<Event> events);
+    Uni<RowSet<Row>> saveEvents(SqlConnection client, final List<Event> events);
 
-    Future<RowSet<Event>> loadEvents(final String aggregateId, long version);
+    Uni<RowSet<Event>> loadEvents(final String aggregateId, long version);
 
     <T extends AggregateRoot> Uni<Void> save(final T aggregate);
 
