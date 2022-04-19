@@ -44,6 +44,32 @@ public class EventStore implements EventStoreDB {
     @Inject
     PgPool pgPool;
 
+    @Override
+    @Traced
+    public <T extends AggregateRoot> Uni<Void> save(T aggregate) {
+        final List<Event> changes = new ArrayList<>(aggregate.getChanges());
+
+        logger.infof("(SAVE) aggregate changes: >>>> %s", changes);
+
+        return pgPool.withTransaction(client -> handleConcurrency(client, aggregate.getId())
+                .chain(v -> saveEvents(client, aggregate.getChanges()))
+                .chain(s -> aggregate.getVersion() % SNAPSHOT_FREQUENCY == 0 ? saveSnapshot(client, aggregate) : Uni.createFrom().item(s))
+                .onItem().invoke(res -> logger.infof("AFTER SAVE SNAPSHOT: >>>>>> %s", res.rowCount()))
+                .chain(a -> eventBus.publish(changes))
+                .onItem().invoke(res -> logger.info("AFTER EVENT BUs PUBLISH : >>>>>> %s"))
+                .onFailure().invoke(ex -> logger.error("(save) eventBus.publish ex", ex))
+                .onItem().invoke(success -> logger.infof("save success: %s", success)));
+    }
+
+    @Override
+    @Traced
+    public <T extends AggregateRoot> Uni<T> load(String aggregateId, Class<T> aggregateType) {
+        return pgPool.withTransaction(client -> this.getSnapshot(client, aggregateId)
+                        .onItem().transform(snapshot -> getSnapshotFromClass(snapshot, aggregateId, aggregateType)))
+                .chain(a -> this.loadEvents(a.getId(), a.getVersion())
+                        .chain(events -> raiseAggregateEvents(a, events)));
+    }
+
     @Traced
     @Override
     public Uni<RowSet<Row>> saveEvents(SqlConnection client, List<Event> events) {
@@ -93,24 +119,6 @@ public class EventStore implements EventStoreDB {
                 .onFailure().invoke(ex -> logger.error("handleConcurrency ex", ex));
     }
 
-    @Override
-    @Traced
-    public <T extends AggregateRoot> Uni<Void> save(T aggregate) {
-        final List<Event> changes = new ArrayList<>(aggregate.getChanges());
-
-        logger.infof("(SAVE) aggregate changes: >>>> %s", changes);
-
-        final var future = pgPool.withTransaction(client -> handleConcurrency(client, aggregate.getId())
-                .chain(v -> saveEvents(client, aggregate.getChanges()))
-                .chain(s -> aggregate.getVersion() % SNAPSHOT_FREQUENCY == 0 ? saveSnapshot(client, aggregate) : Uni.createFrom().item(s))
-                .onItem().invoke(res -> logger.infof("AFTER SAVE SNAPSHOT: >>>>>> %s", res.rowCount()))
-                .chain(a -> eventBus.publish(changes))
-                .onItem().invoke(res -> logger.info("AFTER EVENT BUs PUBLISH : >>>>>> %s"))
-                .onFailure().invoke(ex -> logger.error("(save) eventBus.publish ex", ex))
-                .onItem().invoke(success -> logger.infof("save success: %s", success)));
-
-        return future;
-    }
 
     @Traced
     private <T extends AggregateRoot> Uni<RowSet<Row>> saveSnapshot(SqlConnection client, T aggregate) {
@@ -164,17 +172,6 @@ public class EventStore implements EventStoreDB {
         return EventSourcingUtils.aggregateFromSnapshot(snapshot, aggregateType);
     }
 
-    @Override
-    @Traced
-    public <T extends AggregateRoot> Uni<T> load(String aggregateId, Class<T> aggregateType) {
-
-        final var result = pgPool.withTransaction(client -> this.getSnapshot(client, aggregateId)
-                .onItem().transform(snapshot -> getSnapshotFromClass(snapshot, aggregateId, aggregateType)))
-                .chain(a -> this.loadEvents(a.getId(), a.getVersion())
-                        .chain(events -> raiseAggregateEvents(a, events)));
-
-        return result;
-    }
 
     @Traced
     private <T extends AggregateRoot> Uni<T> raiseAggregateEvents(T aggregate, RowSet<Event> events) {
