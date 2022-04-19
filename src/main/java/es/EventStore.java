@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import static es.Constants.*;
+
 @ApplicationScoped
 public class EventStore implements EventStoreDB {
 
@@ -56,7 +58,7 @@ public class EventStore implements EventStoreDB {
                 .chain(s -> aggregate.getVersion() % SNAPSHOT_FREQUENCY == 0 ? saveSnapshot(client, aggregate) : Uni.createFrom().item(s))
                 .onItem().invoke(res -> logger.infof("AFTER SAVE SNAPSHOT: >>>>>> %s", res.rowCount()))
                 .chain(a -> eventBus.publish(changes))
-                .onItem().invoke(res -> logger.info("AFTER EVENT BUs PUBLISH : >>>>>> %s"))
+                .onItem().invoke(res -> logger.info("AFTER EVENT BUS PUBLISH : >>>>>> %s"))
                 .onFailure().invoke(ex -> logger.error("(save) eventBus.publish ex", ex))
                 .onItem().invoke(success -> logger.infof("save success: %s", success)));
     }
@@ -179,26 +181,26 @@ public class EventStore implements EventStoreDB {
 
     private static Snapshot snapshotFromRow(Row row) {
         return Snapshot.builder()
-                .id(row.getUUID("snapshot_id"))
-                .aggregateId(row.getString("aggregate_id"))
-                .aggregateType(row.getString("aggregate_type"))
-                .data(row.getBuffer("data").getBytes())
-                .metaData(row.getBuffer("metadata").getBytes())
-                .version(row.getLong("version"))
-                .timeStamp(row.getLocalDateTime("timestamp"))
+                .id(row.getUUID(SNAPSHOT_ID))
+                .aggregateId(row.getString(AGGREGATE_ID))
+                .aggregateType(row.getString(AGGREGATE_TYPE))
+                .data(row.getBuffer(DATA).getBytes())
+                .metaData(row.getBuffer(METADATA).getBytes())
+                .version(row.getLong(VERSION))
+                .timeStamp(row.getLocalDateTime(TIMESTAMP))
                 .build();
     }
 
     private static Event eventFromRow(Row row) {
         return Event.builder()
-                .id(row.getUUID("event_id"))
-                .aggregateId(row.getString("aggregate_id"))
-                .aggregateType(row.getString("aggregate_type"))
-                .eventType(row.getString("event_type"))
-                .data(row.getBuffer("data").getBytes())
-                .metaData(row.getBuffer("metadata").getBytes())
-                .version(row.getLong("version"))
-                .timeStamp(row.getOffsetDateTime("timestamp").toZonedDateTime())
+                .id(row.getUUID(EVENT_ID))
+                .aggregateId(row.getString(AGGREGATE_ID))
+                .aggregateType(row.getString(AGGREGATE_TYPE))
+                .eventType(row.getString(EVENT_TYPE))
+                .data(row.getBuffer(DATA).getBytes())
+                .metaData(row.getBuffer(METADATA).getBytes())
+                .version(row.getLong(VERSION))
+                .timeStamp(row.getOffsetDateTime(TIMESTAMP).toZonedDateTime())
                 .build();
     }
 }
