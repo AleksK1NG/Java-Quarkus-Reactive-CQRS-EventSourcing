@@ -15,6 +15,8 @@ import es.exceptions.InvalidEventTypeException;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import mappers.BankAccountMapper;
+import org.eclipse.microprofile.faulttolerance.Retry;
+import org.eclipse.microprofile.faulttolerance.Timeout;
 import org.eclipse.microprofile.opentracing.Traced;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
@@ -86,6 +88,8 @@ public class BankAccountMongoProjection implements Projection {
     }
 
     @Traced
+    @Retry(maxRetries = 3, delay = 500)
+    @Timeout(value = 5000)
     private Uni<Void> handle(BankAccountCreatedEvent event) {
         logger.infof("(when) BankAccountCreatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
 
@@ -104,6 +108,8 @@ public class BankAccountMongoProjection implements Projection {
     }
 
     @Traced
+    @Retry(maxRetries = 3, delay = 500)
+    @Timeout(value = 5000)
     private Uni<Void> handle(EmailChangedEvent event) {
         logger.infof("(when) EmailChangedEvent: %s, aggregateID: %s", event, event.getAggregateId());
 
@@ -119,6 +125,8 @@ public class BankAccountMongoProjection implements Projection {
     }
 
     @Traced
+    @Retry(maxRetries = 3, delay = 500)
+    @Timeout(value = 5000)
     private Uni<Void> handle(AddressUpdatedEvent event) {
         logger.infof("(when) AddressUpdatedEvent: %s, aggregateID: %s", event, event.getAggregateId());
 
@@ -134,6 +142,8 @@ public class BankAccountMongoProjection implements Projection {
     }
 
     @Traced
+    @Retry(maxRetries = 3, delay = 500)
+    @Timeout(value = 5000)
     private Uni<Void> handle(BalanceDepositedEvent event) {
         logger.infof("(when) BalanceDepositedEvent: %s, aggregateID: %s", event, event.getAggregateId());
 
