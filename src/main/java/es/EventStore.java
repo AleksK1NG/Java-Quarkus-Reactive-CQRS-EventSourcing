@@ -75,7 +75,6 @@ public class EventStore implements EventStoreDB {
     public Uni<RowSet<Row>> saveEvents(SqlConnection client, List<Event> events) {
         logger.info("(saveEvents) START SAVE EVENTS >>>>>>>>>>>>>>>");
 
-
         final List<io.vertx.mutiny.sqlclient.Tuple> tupleList = events.stream().map(event -> Tuple.of(
                 event.getAggregateId(),
                 event.getAggregateType(),
@@ -98,16 +97,7 @@ public class EventStore implements EventStoreDB {
     @Override
     @Traced
     public Uni<RowSet<Event>> loadEvents(String aggregateId, long version) {
-        return pgPool.preparedQuery(LOAD_EVENTS_QUERY).mapping(row -> Event.builder()
-                        .id(row.getUUID("event_id"))
-                        .aggregateId(row.getString("aggregate_id"))
-                        .aggregateType(row.getString("aggregate_type"))
-                        .eventType(row.getString("event_type"))
-                        .data(row.getBuffer("data").getBytes())
-                        .metaData(row.getBuffer("metadata").getBytes())
-                        .version(row.getLong("version"))
-                        .timeStamp(row.getOffsetDateTime("timestamp").toZonedDateTime())
-                        .build())
+        return pgPool.preparedQuery(LOAD_EVENTS_QUERY).mapping(EventStore::eventFromRow)
                 .execute(Tuple.of(aggregateId, version))
                 .onFailure().invoke(ex -> logger.error("(loadEvents) preparedQuery ex:", ex));
     }
@@ -137,15 +127,7 @@ public class EventStore implements EventStoreDB {
 
     @Traced
     private Uni<Snapshot> getSnapshot(SqlConnection client, String aggregateID) {
-        return client.preparedQuery(GET_SNAPSHOT_QUERY).mapping(row -> Snapshot.builder()
-                        .id(row.getUUID("snapshot_id"))
-                        .aggregateId(row.getString("aggregate_id"))
-                        .aggregateType(row.getString("aggregate_type"))
-                        .data(row.getBuffer("data").getBytes())
-                        .metaData(row.getBuffer("metadata").getBytes())
-                        .version(row.getLong("version"))
-                        .timeStamp(row.getLocalDateTime("timestamp"))
-                        .build())
+        return client.preparedQuery(GET_SNAPSHOT_QUERY).mapping(EventStore::snapshotFromRow)
                 .execute(Tuple.of(aggregateID))
                 .onFailure().invoke(ex -> logger.error("(getSnapshot) preparedQuery ex:", ex))
                 .onItem().transform(result -> result.size() == 0 ? null : result.iterator().next())
@@ -192,5 +174,31 @@ public class EventStore implements EventStoreDB {
         return pgPool.preparedQuery(EXISTS_QUERY).execute(Tuple.of(aggregateId))
                 .map(m -> m.rowCount() > 0)
                 .onFailure().invoke(ex -> logger.error("(exists) aggregateId: %s, ex:", aggregateId, ex));
+    }
+
+
+    private static Snapshot snapshotFromRow(Row row) {
+        return Snapshot.builder()
+                .id(row.getUUID("snapshot_id"))
+                .aggregateId(row.getString("aggregate_id"))
+                .aggregateType(row.getString("aggregate_type"))
+                .data(row.getBuffer("data").getBytes())
+                .metaData(row.getBuffer("metadata").getBytes())
+                .version(row.getLong("version"))
+                .timeStamp(row.getLocalDateTime("timestamp"))
+                .build();
+    }
+
+    private static Event eventFromRow(Row row) {
+        return Event.builder()
+                .id(row.getUUID("event_id"))
+                .aggregateId(row.getString("aggregate_id"))
+                .aggregateType(row.getString("aggregate_type"))
+                .eventType(row.getString("event_type"))
+                .data(row.getBuffer("data").getBytes())
+                .metaData(row.getBuffer("metadata").getBytes())
+                .version(row.getLong("version"))
+                .timeStamp(row.getOffsetDateTime("timestamp").toZonedDateTime())
+                .build();
     }
 }
