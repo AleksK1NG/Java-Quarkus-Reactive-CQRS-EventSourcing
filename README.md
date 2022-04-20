@@ -15,6 +15,7 @@
 * [Grafana](https://grafana.com/) - Grafana
 * [Jaeger](https://www.jaegertracing.io/) - Jaeger tracing
 * [Flyway](https://www.jaegertracing.io/) - database migrations.
+* [SmallRye Fault Tolerance](https://quarkus.io/guides/smallrye-fault-tolerance) -  Fault Tolerance.
 
 
 ### Swagger UI:

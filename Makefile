@@ -62,3 +62,7 @@ clean:
 
 logs-local:
 	docker logs -f $(FILES)
+
+
+wrk_load_test:
+	wrk -t10 -c400 -d60s --latency http://localhost:8006/api/v1/bank/121f3400-9228-4ba0-b548-d50062355210
