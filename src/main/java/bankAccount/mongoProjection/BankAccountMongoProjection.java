@@ -41,14 +41,14 @@ public class BankAccountMongoProjection implements Projection {
     @Incoming(value = "eventstore-in")
     @Traced
     public Uni<Void> process(Message<byte[]> message) {
-        logger.infof("(consumer) process >>> events: %s", new String(message.getPayload()));
+        logger.infof("(consumer) process events: >>>>> %s", new String(message.getPayload()));
         final Event[] events = SerializerUtils.deserializeEventsFromJsonBytes(message.getPayload());
 
         if (events.length == 0)
             return Uni.createFrom().voidItem()
                     .onItem().invoke(() -> logger.warn("empty events list"))
                     .onItem().invoke(message::ack)
-                    .onFailure().invoke(ex -> logger.error("process msg ack exception", ex));
+                    .onFailure().invoke(ex -> logger.error("(process) msg ack exception", ex));
 
         return Multi.createFrom().iterable(List.of(events))
                 .onItem().call(event -> this.when(event)
@@ -66,7 +66,7 @@ public class BankAccountMongoProjection implements Projection {
     @Traced
     public Uni<Void> when(Event event) {
         final var aggregateId = event.getAggregateId();
-        logger.infof("(when) >>>>> aggregateId: %s", aggregateId);
+        logger.infof("(when) event aggregateId: >>>>> %s", aggregateId);
 
         switch (event.getEventType()) {
             case BankAccountCreatedEvent.BANK_ACCOUNT_CREATED_V1 -> {

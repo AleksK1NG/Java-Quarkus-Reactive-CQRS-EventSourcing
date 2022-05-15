@@ -50,9 +50,6 @@ public class EventStore implements EventStoreDB {
     @Traced
     public <T extends AggregateRoot> Uni<Void> save(T aggregate) {
         final List<Event> changes = new ArrayList<>(aggregate.getChanges());
-
-        logger.infof("(SAVE) aggregate changes: >>>> %s", changes);
-
         return pgPool.withTransaction(client -> handleConcurrency(client, aggregate.getId())
                 .chain(v -> saveEvents(client, aggregate.getChanges()))
                 .chain(s -> aggregate.getVersion() % SNAPSHOT_FREQUENCY == 0 ? saveSnapshot(client, aggregate) : Uni.createFrom().item(s))
@@ -75,8 +72,6 @@ public class EventStore implements EventStoreDB {
     @Traced
     @Override
     public Uni<RowSet<Row>> saveEvents(SqlConnection client, List<Event> events) {
-        logger.info("(saveEvents) START SAVE EVENTS >>>>>>>>>>>>>>>");
-
         final List<io.vertx.mutiny.sqlclient.Tuple> tupleList = events.stream().map(event -> Tuple.of(
                 event.getAggregateId(),
                 event.getAggregateType(),
@@ -87,7 +82,7 @@ public class EventStore implements EventStoreDB {
 
         if (tupleList.size() == 1) {
             return client.preparedQuery(SAVE_EVENTS_QUERY).execute(tupleList.get(0))
-                    .onFailure().invoke(ex -> logger.error("(SAVE_EVENTS_QUERY) ex:", ex))
+                    .onFailure().invoke(ex -> logger.error("(saveEvents) preparedQuery ex:", ex))
                     .onItem().invoke(result -> logger.infof("(saveEvents) execute result: %s", result.rowCount()));
         }
 
@@ -108,14 +103,12 @@ public class EventStore implements EventStoreDB {
     @Traced
     private Uni<RowSet<Row>> handleConcurrency(SqlConnection client, String aggregateID) {
         return client.preparedQuery(HANDLE_CONCURRENCY_QUERY).execute(Tuple.of(aggregateID))
-                .onFailure().invoke(ex -> logger.error("handleConcurrency ex", ex));
+                .onFailure().invoke(ex -> logger.error("(handleConcurrency) ex", ex));
     }
 
 
     @Traced
     private <T extends AggregateRoot> Uni<RowSet<Row>> saveSnapshot(SqlConnection client, T aggregate) {
-        logger.infof("saveSnapshot (SAVE SNAPSHOT) version >>>>>> %s", aggregate.getVersion());
-
         aggregate.toSnapshot();
         final var snapshot = EventSourcingUtils.snapshotFromAggregate(aggregate);
         return client.preparedQuery(SAVE_SNAPSHOT_QUERY).execute(Tuple.of(
@@ -133,7 +126,7 @@ public class EventStore implements EventStoreDB {
                 .execute(Tuple.of(aggregateID))
                 .onFailure().invoke(ex -> logger.error("(getSnapshot) preparedQuery ex:", ex))
                 .onItem().transform(result -> result.size() == 0 ? null : result.iterator().next())
-                .onItem().invoke(snapshot -> logger.infof("(getSnapshot) onSuccess snapshot version: %s", Optional.ofNullable(snapshot)
+                .onItem().invoke(snapshot -> logger.infof("(getSnapshot) snapshot version: %s", Optional.ofNullable(snapshot)
                         .map(Snapshot::getVersion)));
     }
 
@@ -162,7 +155,7 @@ public class EventStore implements EventStoreDB {
         if (events != null && events.rowCount() > 0) {
             events.forEach(event -> {
                 aggregate.raiseEvent(event);
-                logger.infof("(load) loadEvents raiseEvent event version: %s", event.getVersion());
+                logger.infof("(raiseAggregateEvents) event version: %s", event.getVersion());
             });
             return Uni.createFrom().item(aggregate);
         } else {

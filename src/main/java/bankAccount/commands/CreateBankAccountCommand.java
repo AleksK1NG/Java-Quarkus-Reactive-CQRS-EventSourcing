@@ -1,4 +1,4 @@
 package bankAccount.commands;
 
-public record CreateBankAccountCommand(String aggregateID, String email, String userName, String address) {
+public record CreateBankAccountCommand(String email, String userName, String address) {
 }

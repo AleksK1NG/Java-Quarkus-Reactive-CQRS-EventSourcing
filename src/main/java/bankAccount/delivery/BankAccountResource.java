@@ -23,7 +23,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Optional;
-import java.util.UUID;
 
 @Path(value = "/api/v1/bank")
 @Produces(MediaType.APPLICATION_JSON)
@@ -44,8 +43,7 @@ public class BankAccountResource {
     @Timeout(value = 5000)
     @CircuitBreaker(requestVolumeThreshold = 30, delay = 3000, failureRatio = 0.6)
     public Uni<Response> createBanAccount(@Valid CreateBankAccountRequestDTO dto) {
-        final var aggregateID = UUID.randomUUID().toString();
-        final var command = new CreateBankAccountCommand(aggregateID, dto.email(), dto.userName(), dto.address());
+        final var command = new CreateBankAccountCommand(dto.email(), dto.userName(), dto.address());
         logger.infof("CreateBankAccountCommand: %s", command);
         return commandService.handle(command).onItem().transform(id -> Response.status(Response.Status.CREATED).entity(id).build());
     }

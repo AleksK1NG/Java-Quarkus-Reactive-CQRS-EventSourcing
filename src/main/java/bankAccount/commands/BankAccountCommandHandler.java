@@ -9,6 +9,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.util.UUID;
 
 @ApplicationScoped
 public class BankAccountCommandHandler implements BankAccountCommandService {
@@ -22,10 +23,11 @@ public class BankAccountCommandHandler implements BankAccountCommandService {
     @Override
     @Traced
     public Uni<String> handle(CreateBankAccountCommand command) {
-        final var aggregate = new BankAccountAggregate(command.aggregateID());
+        final var aggregate = new BankAccountAggregate(UUID.randomUUID().toString());
         aggregate.createBankAccount(command.email(), command.address(), command.userName());
-        return eventStoreDB.save(aggregate).replaceWith(aggregate.getId())
-                .onItem().invoke(() -> logger.infof("crated bank account: %s", aggregate));
+        return eventStoreDB.save(aggregate)
+                .replaceWith(aggregate.getId())
+                .onItem().invoke(() -> logger.infof("created bank account: %s", aggregate));
     }
 
     @Override
