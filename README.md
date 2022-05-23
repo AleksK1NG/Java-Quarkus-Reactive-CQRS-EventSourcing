@@ -1,4 +1,4 @@
-### Java Quarkus CQRS and EventSourcing microservice example 👋
+### Java Quarkus CQRS and EventSourcing microservice example 👋💫✨
 
 #### 👨‍💻 Full list what has been used:
 * [Quarkus](https://quarkus.io/) - Supersonic Subatomic Java.
@@ -41,13 +41,6 @@ make local // runs docker-compose.yml
 ./mvnw compile quarkus:dev // run microservice
 ```
 
-
-# code-with-quarkus-reactive-pg Project
-
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
-
-If you want to learn more about Quarkus, please visit its website: https://quarkus.io/ .
-
 ## Running the application in dev mode
 
 You can run your application in dev mode that enables live coding using:
@@ -86,20 +79,3 @@ Or, if you don't have GraalVM installed, you can run the native executable build
 ```shell script
 ./mvnw package -Pnative -Dquarkus.native.container-build=true
 ```
-
-You can then execute your native executable with: `./target/code-with-quarkus-reactive-pg-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult https://quarkus.io/guides/maven-tooling.
-
-## Related Guides
-
-- Hibernate Validator ([guide](https://quarkus.io/guides/validation)): Validate object properties (field, getter) and method parameters for your beans (REST, CDI, JPA)
-- Reactive PostgreSQL client ([guide](https://quarkus.io/guides/reactive-sql-clients)): Connect to the PostgreSQL database using the reactive pattern
-
-## Provided Code
-
-### RESTEasy Reactive
-
-Easily start your Reactive RESTful Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
